@@ -34,16 +34,11 @@ int main() {
     eigvals.print("eigen values:");
     eigvecs.print("eigen vectors:");
     
-    uvec indices = sort_index(eigvals);
-    indices.print("indices");
-    int target_index = indices[last_index-2];
-    printf("target index: %d", target_index);
-
     //eigvecs.col(0)
     //vec smallest_eigvec = eigvecs.col(last_index);
     //vec smallest_eigvec = eigvecs.col(last_index-);
-    vec smallest_eigvec = eigvecs.col(target_index);
-    double smallest_eigval = eigvals(target_index);
+    vec smallest_eigvec = eigvecs.col(2);
+    double smallest_eigval = eigvals(last_index);
     smallest_eigvec.print("Smallest Eigenvector");
 
     //stdvec solution_vec(mat_thickness)

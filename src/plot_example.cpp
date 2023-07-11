@@ -28,6 +28,7 @@ int main(int argc, char** argv)
 
     // Plot sin(i*x) from i = 1 to i = 6
     plot.drawDots(x, std::sin(1.0 * x)).label("sin(x)");
+    plot.drawPoints(x, std::sin(4.0 * x)).pointType(6);
     plot.drawCurve(x, std::sin(2.0 * x)).label("sin(x)");
     // plot.drawCurve(x, std::sin(2.0 * x)).label("sin(2x)");
     // plot.drawCurve(x, std::sin(3.0 * x)).label("sin(3x)");
