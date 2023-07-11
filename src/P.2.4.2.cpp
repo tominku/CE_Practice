@@ -8,7 +8,7 @@ typedef std::vector<double> stdvec;
 
 int main() {
 
-    int N = 50;
+    int N = 500;
     int mat_thickness = N-2;
     int last_index = mat_thickness - 1; 
     mat A(mat_thickness, mat_thickness, arma::fill::zeros);
@@ -34,7 +34,7 @@ int main() {
     eigvals.print("eigen values:");
     eigvecs.print("eigen vectors:");
     
-    uvec indices = sort_index(eigvals);
+    uvec indices = arma::sort_index(eigvals);
     indices.print("indices");
     int target_index = indices[last_index-2];
     printf("target index: %d", target_index);
