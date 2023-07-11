@@ -12,11 +12,11 @@ int main() {
             
     A.print("A:");
 
-    cx_vec eigval;
-    cx_mat eigvec;
+    cx_vec eigvals;
+    cx_mat eigvecs;
 
-    eig_gen(eigval, eigvec, A);
+    eig_gen(eigvals, eigvecs, A);
 
-    eigval.print("eigen values:");
-    eigvec.print("eigen vectors:");
+    eigvals.print("eigen values:");
+    eigvecs.print("eigen vectors:");
 }
