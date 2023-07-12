@@ -54,8 +54,8 @@ std::pair<mat, vec> construct_A_b_poisson(double total_width, int N, pairlist& w
     }
 
     vec b(N, arma::fill::zeros);    
-    // b(last_index) = 1;   
-    
+    b(last_index) = 1;       
+
     return std::pair<mat, vec>(A, b);    
 }
 
