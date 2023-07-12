@@ -46,7 +46,7 @@ std::pair<mat, vec> construct_A_b_poisson(double total_width, int N, pairlist& w
     for (int k=1; k<last_index; k++)
     {
         double i = double(k+1);
-        vec row_elements(3);
+        rowvec row_elements(3);
         row_elements(0) = i_to_eps(i - 0.5, total_width, N, width_eps_list);
         row_elements(1) = - ( i_to_eps(i - 0.5, total_width, N, width_eps_list) + i_to_eps(i + 0.5, total_width, N, width_eps_list) );
         row_elements(2) = i_to_eps(i + 0.5, total_width, N, width_eps_list);
