@@ -66,8 +66,8 @@ void plot(int N, vec& y)
     stdvec solution_vec = conv_to<stdvec>::from(y);
 
     Plot2D plot;
-    plot.xlabel("x");
-    plot.ylabel("y");
+    plot.xlabel("Position (nm)");
+    plot.ylabel("Potential (V)");
 
     // Set the x and y ranges
     //plot.xrange(0.0, 5);
@@ -80,8 +80,8 @@ void plot(int N, vec& y)
         .displayExpandWidthBy(2);
 
     Vec x = linspace(0.0, 5, N);
-    plot.drawCurve(x, solution_vec);
-    plot.drawPoints(x, solution_vec).pointType(6);
+    plot.drawCurve(x, solution_vec).label("Potential");
+    plot.drawPoints(x, solution_vec).pointType(6).label("Potential");
     // Create figure to hold plot
     Figure fig = {{plot}};
     // Create canvas to hold figure
