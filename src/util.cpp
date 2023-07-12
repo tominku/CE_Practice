@@ -61,7 +61,7 @@ std::pair<mat, vec> construct_A_b_poisson(double total_width, int N,
     return std::pair<mat, vec>(A, b);    
 }
 
-void plot(int N, vec& y)
+void plot(double total_width, int N, vec& y)
 {
     stdvec solution_vec = conv_to<stdvec>::from(y);
 
@@ -79,7 +79,8 @@ void plot(int N, vec& y)
         .displayHorizontal()
         .displayExpandWidthBy(2);
 
-    Vec x = linspace(0.0, 5, N);
+    //sciplot::linspace(0.0, 6.0, N)
+    sciplot::Vec x = sciplot::linspace(0.0, total_width, N);
     plot.drawCurve(x, solution_vec).label("Potential");
     plot.drawPoints(x, solution_vec).pointType(6).label("Potential");
     // Create figure to hold plot

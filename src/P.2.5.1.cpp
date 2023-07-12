@@ -23,5 +23,5 @@ int main() {
     //A.print("A:");
 
     vec sol_vec = arma::solve(A, b);  
-    plot(N, sol_vec);
+    plot(total_width, N, sol_vec);
 }
