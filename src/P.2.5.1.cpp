@@ -13,7 +13,9 @@ int main() {
     pairlist width_eps_list;    
     width_eps_list.push_back(std::pair<double, double>(total_width, 1.0));    
     
-    std::pair<mat, vec> A_b = construct_A_b_poisson(total_width, N, width_eps_list);   
+    std::pair<double, double> end_potentials(0.0, 1.0);
+
+    std::pair<mat, vec> A_b = construct_A_b_poisson(total_width, N, width_eps_list, end_potentials);   
 
     mat A = A_b.first;
     vec b = A_b.second;

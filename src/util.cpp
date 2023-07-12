@@ -33,7 +33,8 @@ double i_to_eps(double i, double total_width, int N, pairlist& width_eps_list)
     return found_eps;
 }
 
-std::pair<mat, vec> construct_A_b_poisson(double total_width, int N, pairlist& width_eps_list)
+std::pair<mat, vec> construct_A_b_poisson(double total_width, int N, 
+    pairlist& width_eps_list, std::pair<double, double> end_potentials)
 {    
     mat A(N, N, arma::fill::zeros);
     int last_index = N - 1; 
@@ -54,7 +55,8 @@ std::pair<mat, vec> construct_A_b_poisson(double total_width, int N, pairlist& w
     }
 
     vec b(N, arma::fill::zeros);    
-    b(last_index) = 1;       
+    b(0) = end_potentials.first;
+    b(last_index) = end_potentials.second;       
 
     return std::pair<mat, vec>(A, b);    
 }
