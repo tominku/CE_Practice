@@ -22,9 +22,9 @@ int main() {
     mat A = A_b.first;
     vec b = A_b.second;
     
-    double deltaX = 0.1;
+    double deltaX = 0.1 * 1e-9; // in meter
     double q = 1.602e-19;
-    double N_acceptor = 10e18;
+    double N_acceptor = 10e18 * 1e-6; // 
 
     for (int k=1; k<60; ++k)
     {
@@ -42,6 +42,11 @@ int main() {
             b(i) = 0.0;
     }
 
+    // matrix scaling
+    double eps_0 = 8.854 * 10e-12; // in meter
+    A.rows(1, N-2) = A.rows(1, N-2) / eps_0;
+    b(span(1, N-2)) = b(span(1, N-2)) / eps_0;
+    
     //A.print("A:");
 
     vec sol_vec = arma::solve(A, b);  

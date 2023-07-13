@@ -68,8 +68,9 @@ int main() {
         .atOutsideBottom()
         .displayHorizontal()
         .displayExpandWidthBy(2);
+    plot.grid().show();
 
-    Vec x = linspace(0.0, 5, mat_thickness);
+    Vec x = linspace(0.0, 5, N);
     plot.drawPoints(x, std_solution_vec).pointType(6);
     plot.drawCurve(x, std_solution_vec);
     // Create figure to hold plot

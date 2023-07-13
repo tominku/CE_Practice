@@ -78,7 +78,8 @@ void plot(double total_width, int N, vec& y)
         .atOutsideBottom()
         .displayHorizontal()
         .displayExpandWidthBy(2);
-
+    plot.grid().show();
+    
     //sciplot::linspace(0.0, 6.0, N)
     sciplot::Vec x = sciplot::linspace(0.0, total_width, N);
     plot.drawCurve(x, solution_vec).label("Potential");
