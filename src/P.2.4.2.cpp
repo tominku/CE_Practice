@@ -8,19 +8,19 @@ typedef std::vector<double> stdvec;
 
 int main() {
 
-    int N = 50;
-    int mat_thickness = N-2;
-    int last_index = mat_thickness - 1; 
-    mat A(mat_thickness, mat_thickness, arma::fill::zeros);
+    double a = 5.0;
+    int N = 50; 
+    mat A(N-2, N-2, arma::fill::zeros);
 
     // matrix construction
     A(0, arma::span(0, 1)) = {-2, 1};
+    int last_index = N - 2 - 1;
     A(last_index, arma::span(last_index-1, last_index)) = {1, -2};
 
     // matrix construction
-    for (int i=1; i<last_index; i++)
+    for (int k=1; k < last_index; k++)
     {
-        A(i, arma::span(i-1, i+1)) = {1, -2, 1};
+        A(k, arma::span(k-1, k+1)) = {1, -2, 1};
     }
 
     //A.print("A:");
@@ -31,18 +31,28 @@ int main() {
     eig_gen(cx_eigvals, cx_eigvecs, A);
     mat eigvecs = real(cx_eigvecs);
     vec eigvals = real(cx_eigvals);
+    vec k_deltaX_squared = -eigvals;
+    double deltaX = a / double(N -1);
+    double deltaX_squared = deltaX * deltaX;
+    vec k_squared = (1.0 / deltaX_squared) * k_deltaX_squared;
+    vec k = sqrt(k_squared);
+    k.print("k");
+    //vec n = k * a / double(3.14);
+    
+    //n.print("k");
     //eigvals.print("eigen values:");
     //eigvecs.print("eigen vectors:");
     
-    uvec indices = arma::sort_index(eigvals); // ascending order
-    indices.print("indices");
-    int target_index = indices[last_index-2];
+    uvec indices = arma::sort_index(eigvals, "ascend"); // ascending order
+    //indices.print("indices");
+    int n = 3;
+    int target_index = indices[last_index - (n - 1)];
     //int target_index = indices[2];
-    printf("target index: %d \n", target_index);
+    //printf("target index: %d \n", target_index);
 
     vec target_eigvec = eigvecs.col(target_index);
     double target_eigval = eigvals(target_index);
-    target_eigvec.print("Target Eigenvector");
+    //target_eigvec.print("Target Eigenvector");
 
     //stdvec solution_vec(mat_thickness)
     
