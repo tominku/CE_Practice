@@ -6,7 +6,7 @@ using namespace arma;
 
 int main() {
 
-    int N = 50;
+    int N = 500;
     double total_width = 5.0;    
 
     // matrix construction

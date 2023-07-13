@@ -36,17 +36,20 @@ int main() {
     double deltaX_squared = deltaX * deltaX;
     vec k_squared = (1.0 / deltaX_squared) * k_deltaX_squared;
     vec k = sqrt(k_squared);
-    k.print("k");
-    //vec n = k * a / double(3.14);
+    k.print("k:");
     
-    //n.print("k");
-    //eigvals.print("eigen values:");
+    vec n = k * a / double(3.14);
+    n.print("n:");
+    eigvals.print("eigen values:");
     //eigvecs.print("eigen vectors:");
     
-    uvec indices = arma::sort_index(eigvals, "ascend"); // ascending order
+    uvec indices = arma::sort_index(n, "ascend"); // ascending order
+    vec n_sorted = arma::sort(n, "ascend"); // ascending order
+    n_sorted.print("n_sorted:"); 
     //indices.print("indices");
-    int n = 3;
-    int target_index = indices[last_index - (n - 1)];
+    //int n = 3;
+    int target_index = indices[2];
+    //int target_index = indices[last_index - (n - 1)];
     //int target_index = indices[2];
     //printf("target index: %d \n", target_index);
 

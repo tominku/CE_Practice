@@ -23,13 +23,14 @@ int main() {
     vec b = A_b.second;
     
     double deltaX = 0.1 * 1e-9; // in meter
-    double q = 1.602e-19;
-    double N_acceptor = 10e18 * 1e-6; // 
+    double q = 1.602192e-19;
+    double N_acceptor = 1e18 * 1e6; // 
+    double eps_0 = 8.854 * 1e-12; // in meter
 
     for (int k=1; k<60; ++k)
     {
         int i = k + 1;
-        double c = deltaX * deltaX * q * N_acceptor;
+        double c = deltaX * deltaX * q * N_acceptor / eps_0;
         if (i < 6)
             b(i) = 0.0; 
         else if (i == 6)
@@ -43,9 +44,9 @@ int main() {
     }
 
     // matrix scaling
-    double eps_0 = 8.854 * 10e-12; // in meter
-    A.rows(1, N-2) = A.rows(1, N-2) / eps_0;
-    b(span(1, N-2)) = b(span(1, N-2)) / eps_0;
+    // double eps_0 = 8.854 * 1e-12; // in meter
+    // A.rows(1, N-2) = A.rows(1, N-2) / eps_0;
+    // b(span(1, N-2)) = b(span(1, N-2)) / eps_0;
     
     //A.print("A:");
 

@@ -6,14 +6,14 @@ using namespace arma;
 
 int main() {
 
-    int N = 5;
+    int N = 50;
     double total_width = 5.0;    
 
     // matrix construction
     pairlist width_eps_list;    
     width_eps_list.push_back(std::pair<double, double>(total_width, 1.0));    
     
-    std::pair<double, double> end_potentials(0.0, 1.0);
+    std::pair<double, double> end_potentials(-1.0, 2.0);
 
     std::pair<mat, vec> A_b = construct_A_b_poisson(total_width, N, width_eps_list, end_potentials);   
 
