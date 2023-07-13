@@ -8,7 +8,7 @@ typedef std::vector<double> stdvec;
 
 int main() {
 
-    int N = 500;
+    int N = 50;
     int mat_thickness = N-2;
     int last_index = mat_thickness - 1; 
     mat A(mat_thickness, mat_thickness, arma::fill::zeros);
@@ -23,7 +23,7 @@ int main() {
         A(i, arma::span(i-1, i+1)) = {1, -2, 1};
     }
 
-    A.print("A:");
+    //A.print("A:");
 
     // eigen analysis
     cx_vec cx_eigvals;
@@ -31,23 +31,24 @@ int main() {
     eig_gen(cx_eigvals, cx_eigvecs, A);
     mat eigvecs = real(cx_eigvecs);
     vec eigvals = real(cx_eigvals);
-    eigvals.print("eigen values:");
-    eigvecs.print("eigen vectors:");
+    //eigvals.print("eigen values:");
+    //eigvecs.print("eigen vectors:");
     
-    uvec indices = arma::sort_index(eigvals);
+    uvec indices = arma::sort_index(eigvals); // ascending order
     indices.print("indices");
     int target_index = indices[last_index-2];
-    printf("target index: %d", target_index);
+    //int target_index = indices[2];
+    printf("target index: %d \n", target_index);
 
-    //eigvecs.col(0)
-    //vec smallest_eigvec = eigvecs.col(last_index);
-    //vec smallest_eigvec = eigvecs.col(last_index-);
-    vec smallest_eigvec = eigvecs.col(target_index);
-    double smallest_eigval = eigvals(target_index);
-    smallest_eigvec.print("Smallest Eigenvector");
+    vec target_eigvec = eigvecs.col(target_index);
+    double target_eigval = eigvals(target_index);
+    target_eigvec.print("Target Eigenvector");
 
     //stdvec solution_vec(mat_thickness)
-    stdvec solution_vec = conv_to<stdvec>::from(smallest_eigvec);
+    
+    vec solution_vec(N, arma::fill::zeros);
+    solution_vec(span(1, N-2)) = target_eigvec;
+    stdvec std_solution_vec = conv_to<stdvec>::from(solution_vec);
     //sciplot::Vec solution_vec_sciplot(solution_vec)
     
     //A.print("A:");
@@ -55,10 +56,8 @@ int main() {
     // Create a Plot object
     Plot2D plot;
 
-    // Set the x and y labels
-    plot.xlabel("x");
-    plot.ylabel("y");
-    //plot.size(600, 600);
+    plot.xlabel("Position(nm)");
+    plot.ylabel("Wavefunction");
 
     // Set the x and y ranges
     //plot.xrange(0.0, 5);
@@ -71,7 +70,8 @@ int main() {
         .displayExpandWidthBy(2);
 
     Vec x = linspace(0.0, 5, mat_thickness);
-    plot.drawPoints(x, solution_vec).pointType(6);
+    plot.drawPoints(x, std_solution_vec).pointType(6);
+    plot.drawCurve(x, std_solution_vec);
     // Create figure to hold plot
     Figure fig = {{plot}};
     // Create canvas to hold figure
