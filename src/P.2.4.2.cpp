@@ -54,6 +54,8 @@ int main() {
     //printf("target index: %d \n", target_index);
 
     vec target_eigvec = eigvecs.col(target_index);
+    vec psi_squared = arma::square(abs(target_eigvec));
+    
     double target_eigval = eigvals(target_index);
     //target_eigvec.print("Target Eigenvector");
 

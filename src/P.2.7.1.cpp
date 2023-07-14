@@ -15,6 +15,10 @@ int main() {
     width_eps_list.push_back(std::pair<double, double>(5, 11.7));
     width_eps_list.push_back(std::pair<double, double>(0.5, 3.9));
 
+    // width_eps_list.push_back(std::pair<double, double>(1.5, 3.9));
+    // width_eps_list.push_back(std::pair<double, double>(3, 11.7));
+    // width_eps_list.push_back(std::pair<double, double>(1.5, 3.9));
+
     std::pair<double, double> end_potentials(0.0, 0.0);
 
     std::pair<mat, vec> A_b = construct_A_b_poisson(total_width, N, width_eps_list, end_potentials);   
