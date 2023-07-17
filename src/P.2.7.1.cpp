@@ -26,10 +26,8 @@ int main() {
     mat A = A_b.first;
     vec b = A_b.second;
     
-    double deltaX = 0.1 * 1e-9; // in meter
-    double q = 1.602192e-19;
-    double N_acceptor = 1e18 * 1e6; // 
-    double eps_0 = 8.854 * 1e-12; // in meter
+    double deltaX = 0.1 * 1e-9; // in meter    
+    double N_acceptor = 1e18 * 1e6; //     
 
     for (int k=1; k<60; ++k)
     {

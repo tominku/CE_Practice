@@ -1,11 +1,16 @@
 #include <armadillo> 
 #include <iostream> 
 #include <sciplot/sciplot.hpp>
+#include <math.h>
 using namespace arma; 
 using namespace std; 
 using namespace sciplot;
 typedef std::vector<double> stdvec;
 typedef std::vector < std::pair<double, double> > pairlist;
+
+const double q = 1.602192e-19; // (C)
+const double k_B = 1.380662e-23; // (J/K)
+double eps_0 = 8.854187817 * 1e-12; // (F/m)
 
 // A function that matches node index i to permitivity (eps).
 // i starts from 1.
