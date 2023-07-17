@@ -24,9 +24,9 @@ void plot(stdvec &doping_list, stdvec &phis);
 
 int main() {
 
-    double x_0 = 1;    
+    double x_0 = 3;    
     double dop = 1e18;
-    int num_iters = 50;
+    int num_iters = 500;
     stdvec xs;
     stdvec residuals;
 
