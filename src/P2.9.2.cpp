@@ -19,7 +19,7 @@ int main() {
     // width_eps_list.push_back(std::pair<double, double>(3, 11.7));
     // width_eps_list.push_back(std::pair<double, double>(1.5, 3.9));
 
-    std::pair<double, double> end_potentials(0.33374, 0.0);
+    std::pair<double, double> end_potentials(0.33374, 0.33374);
 
     std::pair<mat, vec> A_b = construct_A_b_poisson(total_width, N, width_eps_list, end_potentials);   
 
@@ -44,6 +44,7 @@ int main() {
         else if (i > 56)
             b(i) = 0.0;
     }
+    b(b.n_elem - 1) = 0.33374;
 
     // matrix scaling
     // double eps_0 = 8.854 * 1e-12; // in meter
