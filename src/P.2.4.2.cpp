@@ -8,8 +8,8 @@ typedef std::vector<double> stdvec;
 
 int main() {
 
-    double a = 5.0;
-    int N = 50; 
+    double a = 5.0 * 1e-9;
+    int N = 500; 
     mat A(N-2, N-2, arma::fill::zeros);
 
     // matrix construction
@@ -54,7 +54,14 @@ int main() {
     //printf("target index: %d \n", target_index);
 
     vec target_eigvec = eigvecs.col(target_index);
-    vec psi_squared = arma::square(abs(target_eigvec));
+    double max_f = max(target_eigvec);
+    cout << "max f: " << max_f << "\n";
+    target_eigvec = target_eigvec / max_f;
+    max_f = max(target_eigvec);
+    cout << "max f: " << max_f << "\n";
+    A = sqrt(1.0 / (deltaX * sum(square(abs(target_eigvec)))));
+    A.print("A: ");
+    //vec psi_squared = arma::square(abs(target_eigvec));
     
     double target_eigval = eigvals(target_index);
     //target_eigvec.print("Target Eigenvector");
@@ -63,6 +70,7 @@ int main() {
     
     vec solution_vec(N, arma::fill::zeros);
     solution_vec(span(1, N-2)) = target_eigvec;
+    solution_vec *= A;
     stdvec std_solution_vec = conv_to<stdvec>::from(solution_vec);
     //sciplot::Vec solution_vec_sciplot(solution_vec)
     
