@@ -9,7 +9,7 @@ typedef std::vector<double> stdvec;
 int main() {
 
     double a = 5.0 * 1e-9;
-    int N = 500; 
+    int N = 50; 
     mat A(N-2, N-2, arma::fill::zeros);
 
     // matrix construction
@@ -70,7 +70,7 @@ int main() {
     
     vec solution_vec(N, arma::fill::zeros);
     solution_vec(span(1, N-2)) = target_eigvec;
-    solution_vec *= A;
+    solution_vec *= A / 1e4;
     stdvec std_solution_vec = conv_to<stdvec>::from(solution_vec);
     //sciplot::Vec solution_vec_sciplot(solution_vec)
     
@@ -79,8 +79,8 @@ int main() {
     // Create a Plot object
     Plot2D plot;
 
-    plot.xlabel("Position(nm)");
-    plot.ylabel("Wavefunction");
+    plot.xlabel("Position (nm)");
+    plot.ylabel("Wavefunction (10^4 m^{-0.5})");
 
     // Set the x and y ranges
     //plot.xrange(0.0, 5);
