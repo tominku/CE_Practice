@@ -17,10 +17,6 @@ int main() {
     width_eps_list.push_back(std::pair<double, double>(t_si, 11.7));
     width_eps_list.push_back(std::pair<double, double>(t_ox, 3.9));
 
-    // width_eps_list.push_back(std::pair<double, double>(1.5, 3.9));
-    // width_eps_list.push_back(std::pair<double, double>(3, 11.7));
-    // width_eps_list.push_back(std::pair<double, double>(1.5, 3.9));
-
     std::pair<double, double> end_potentials(0.33374, 0.33374);
 
     std::pair<mat, vec> A_b = construct_A_b_poisson(total_width, N, width_eps_list, end_potentials);   
@@ -29,7 +25,7 @@ int main() {
     vec b = A_b.second;
     
     double deltaX = 0.1 * 1e-9; // in meter    
-    double N_acceptor = 1e18 * 1e6; //     
+    double N_acceptor = 1e18 * 1e6; // in meter     
 
     for (int k=1; k<60; ++k)
     {

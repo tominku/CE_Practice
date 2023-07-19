@@ -5,7 +5,7 @@
 using namespace arma; 
 
 int main() {
-
+ 
     int N = 61;
     double total_width = 6.0;    
 
@@ -13,11 +13,7 @@ int main() {
     pairlist width_eps_list;    
     width_eps_list.push_back(std::pair<double, double>(0.5, 3.9));
     width_eps_list.push_back(std::pair<double, double>(5, 11.7));
-    width_eps_list.push_back(std::pair<double, double>(0.5, 3.9));
-
-    // width_eps_list.push_back(std::pair<double, double>(1.5, 3.9));
-    // width_eps_list.push_back(std::pair<double, double>(3, 11.7));
-    // width_eps_list.push_back(std::pair<double, double>(1.5, 3.9));
+    width_eps_list.push_back(std::pair<double, double>(0.5, 3.9));    
 
     std::pair<double, double> end_potentials(0.0, 0.0);
 
@@ -27,7 +23,7 @@ int main() {
     vec b = A_b.second;
     
     double deltaX = 0.1 * 1e-9; // in meter    
-    double N_acceptor = 1e18 * 1e6; //     
+    double N_acceptor = 1e18 * 1e6; // in meter    
 
     for (int k=1; k<60; ++k)
     {
@@ -45,13 +41,11 @@ int main() {
             b(i) = 0.0;
     }
 
-    // matrix scaling
-    // double eps_0 = 8.854 * 1e-12; // in meter
-    // A.rows(1, N-2) = A.rows(1, N-2) / eps_0;
-    // b(span(1, N-2)) = b(span(1, N-2)) / eps_0;
-    
-    //A.print("A:");
-
+    plot_args args;
+    args.total_width = total_width;
+    args.N = N;      
+    args.x_label = "Position (nm)";
+    args.y_label = "Potential (V)";   
     vec sol_vec = arma::solve(A, b);  
-    plot(total_width, N, sol_vec);
+    plot(sol_vec, args);
 }
