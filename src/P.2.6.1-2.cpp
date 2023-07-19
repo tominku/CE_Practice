@@ -6,7 +6,7 @@ using namespace arma;
 
 int main() {
 
-    int N = 500;
+    int N = 51;
     double total_width = 5.0;    
 
     // matrix construction
@@ -22,7 +22,11 @@ int main() {
     vec b = A_b.second;
 
     //A.print("A:");
-
-    vec sol_vec = arma::solve(A, b);  
-    plot(total_width, N, sol_vec);
+    plot_args args;
+    args.total_width = total_width;
+    args.N = N;    
+    args.y_label = "Potential (V)";
+    vec sol_vec = arma::solve(A, b);      
+    plot(sol_vec, args);
+        
 }
