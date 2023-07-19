@@ -23,21 +23,21 @@ vec r(vec phi)
 {
     int start_i = 2;
     int last_i = N-1;    
-    vec phi_i_minus_1 = phi(
-        span(start_i - 1 - 1, last_i - 1 - 1));
+    vec phi_i_minus_1 = phi(span(start_i - 1 - 1, last_i - 1 - 1));
     vec phi_i = phi(span(start_i - 1, last_i - 1));
     vec phi_i_plus_1 = phi(span(start_i - 1 + 1, last_i - 1 + 1));
-    vec r_i = (eps_si/deltaX) * (phi_i_plus_1 - 2.0*phi_i + phi_i_minus_1);     
-    r_i(span(si_begin_i-1, si_end_i-1)) += ( deltaX*q*dop - deltaX*q*n_int*exp(q*phi(span(si_begin_i-1, si_end_i-1))/(k_B*T)) );
+    vec r_i = (eps_si/deltaX) * (phi_i_plus_1 - 2.0*phi_i + phi_i_minus_1);    
+    r_i(span(si_begin_i-1, si_end_i-1)) += deltaX*q*dop;
     return r_i;
 }
 
 // the jacobian matrix size is (N - 2) by (N - 2)
 mat jacobian(vec phi)
 {
-    mat jac(N-2, N-2, fill::zeros);    
+    mat jac(N-2, N-2, arma::fill::zeros);    
     int offset = 2;
-    for (int i=2; i<=(interface1_i - 1); ++i)
+    //for (int i=2; i<=(interface1_i - 1); ++i)
+    for (int i=2; i<=(interface1_i); ++i)
     {
         jac(i - offset, i + 1 - offset) = eps_ox / deltaX;
         jac(i - offset, i - offset) =  -2.0 * eps_ox / deltaX;
@@ -48,12 +48,13 @@ mat jacobian(vec phi)
     for (int i=si_begin_i; i<=si_end_i; ++i)
     {
         jac(i - offset, i + 1 - offset) = eps_si / deltaX;
-        jac(i - offset, i - offset) =  -2.0 * eps_si / deltaX - deltaX*q*n_int*exp(q*phi(i-1)/(k_B*T));
+        jac(i - offset, i - offset) =  -2.0 * eps_si / deltaX;
         if (i > 2)
             jac(i - offset, i - 1 - offset) = eps_si / deltaX; 
     }
 
-    for (int i=(interface2_i + 1); i<=(N-1); ++i)
+    //for (int i=(interface2_i + 1); i<=(N-1); ++i)
+    for (int i=(interface2_i); i<=(N-1); ++i)
     {
         if (i < (N-1))   
             jac(i - offset, i + 1 - offset) = eps_ox / deltaX;
@@ -68,8 +69,8 @@ mat jacobian(vec phi)
 int main() {
 
     //vec phi_0(N, arma::fill::ones);
-    //vec phi_0(N, arma::fill::zeros);
-    vec phi_0(N, arma::fill::randn);
+    vec phi_0(N, arma::fill::zeros);
+    //vec phi_0(N, arma::fill::ones);
     double bc_left = 0;
     double bc_right = 0;
     phi_0(0) = bc_left;
@@ -82,15 +83,16 @@ int main() {
     {
         vec residual = r(phi_i);
         mat jac = jacobian(phi_i);
-        printf("test");
+        //jac.print("jac:");
+        //printf("test");
         // xs.row(i) = x_i.t();         
         // residuals.row(i) = residual.t();        
         vec delta_phi_i = arma::solve(jac, -residual);
-        phi_i(span(1, N - 1 - 1)) += delta_phi_i;        
+        phi_i(span(1, N - 1 - 1)) += delta_phi_i;                
         
         //phi_i.print("phi_i");
         //jac.print("jac");
-        // printf("[iter %d]   detal_x: %f   residual: %f\n", i, max(abs(delta_x)), max(abs(residual)));        
+        printf("[iter %d]   detal_x: %f   residual: %f\n", i, max(abs(delta_phi_i)), max(abs(residual)));        
     }
 
     phi_i.print("found solution (phi):");
