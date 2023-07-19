@@ -33,31 +33,10 @@ int main() {
         printf("x_i: %f \n", x_i);
     }
 
-    plot(xs, residuals);
-}
-
-void plot(stdvec &xs, stdvec &residuals)
-{
-    Plot2D plot;
-
-    plot.xlabel("x_i");
-    plot.ylabel("residual: f(x)");
-
-    // Set the legend to be on the bottom along the horizontal
-    plot.legend()
-        .atOutsideBottom()
-        .displayHorizontal()
-        .displayExpandWidthBy(2);
-    plot.grid().show();
-
-    plot.drawPoints(xs, residuals).pointType(6).pointSize(2);
-    plot.drawCurve(xs, residuals);
-    // Create figure to hold plot
-    Figure fig = {{plot}};
-    // Create canvas to hold figure
-    Canvas canvas = {{fig}};
-    canvas.size(800, 400);
-
-    // Show the plot in a pop-up window
-    canvas.show(); 
+    plot_args args;        
+    args.x_label = "x_i";
+    args.y_label = "residual: f(x)";    
+    vec vec_xs = arma::conv_to<vec>::from(xs);
+    vec vec_residuals = arma::conv_to<vec>::from(residuals);
+    plot(vec_xs, vec_residuals, args);
 }

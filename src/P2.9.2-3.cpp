@@ -27,37 +27,34 @@ int main() {
     double deltaX = 0.1 * 1e-9; // in meter    
     double N_acceptor = 1e18 * 1e6; // in meter     
 
-    for (int k=1; k<60; ++k)
-    {
-        int i = k + 1;
+    for (int i=1; i<=N; ++i)
+    {        
         double c = deltaX * deltaX * q * N_acceptor / eps_0;
-        if (i < 6)
-            b(i) = 0.0; 
-        else if (i == 6)
-            b(i) = 0.5 * c; 
+        if (i > 1 && i < 6)
+            b(i-1) = 0.0; 
+        else if (i == 6) // ox-si boundary
+            b(i-1) = 0.5 * c; 
         else if (i > 6 and i < 56)
-            b(i) = c;
-        else if (i == 56)
-            b(i) = 0.5 * c;
-        else if (i > 56)
-            b(i) = 0.0;
+            b(i-1) = c;
+        else if (i == 56) // si-ox boundary
+            b(i-1) = 0.5 * c;
+        else if (i > 56 && i < N)
+            b(i-1) = 0.0;
     }
-    b(b.n_elem - 1) = 0.33374;
 
-    vec sol_vec = arma::solve(A, b);  
+    vec sol_vec = arma::solve(A, b);      
 
+    // Potential
     plot_args args;
     args.total_width = total_width;
     args.N = N;    
-
-    // Potential
     args.y_label = "Potential (V)";
     plot(sol_vec, args);
 
     // Electron Density
     double T = 300;
     double n_int = 1e10;
-    double segment_width = total_width / (N - 1);
+    double segment_width = total_width / (N - 1); // in nanometer
     int ox_si_boundary_k = int(t_ox / segment_width);
     int si_ox_boundary_k = int((t_ox + t_si) / segment_width);
     vec ed(N, arma::fill::zeros);
