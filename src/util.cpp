@@ -11,6 +11,8 @@ typedef std::vector < std::pair<double, double> > pairlist;
 const double q = 1.602192e-19; // (C)
 const double k_B = 1.380662e-23; // (J/K)
 double eps_0 = 8.854187817 * 1e-12; // (F/m)
+double eps_ox = eps_0 * 3.9;
+double eps_si = eps_0 * 11.7;
 
 // A function that matches node index i to permitivity (eps).
 // i starts from 1.
@@ -95,7 +97,7 @@ void plot(vec& x, vec& y, plot_args &args)
 
     if (args.logscale > 0)
         plot.xtics().logscale(args.logscale);        
-        
+
     plot.drawCurve(x, y);
     plot.drawPoints(x, y).pointType(6);
     // Create figure to hold plot
