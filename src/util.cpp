@@ -71,11 +71,12 @@ struct plot_args{
     int N=10;
     string x_label="Position (nm)";
     string y_label="Potential (V)";
+    int logscale = -1;
 };
 
-void plot(vec& y, plot_args &args)
+void plot(vec& x, vec& y, plot_args &args)
 {
-    stdvec solution_vec = conv_to<stdvec>::from(y);
+    //stdvec solution_vec = conv_to<stdvec>::from(y);
 
     Plot2D plot;
     plot.xlabel(args.x_label);
@@ -91,12 +92,12 @@ void plot(vec& y, plot_args &args)
         .displayHorizontal()
         .displayExpandWidthBy(2);
     plot.grid().show();
-    
-    double total_width = args.total_width;
-    int N = args.N;
-    sciplot::Vec x = sciplot::linspace(0.0, total_width, N-1);
-    plot.drawCurve(x, solution_vec);
-    plot.drawPoints(x, solution_vec).pointType(6);
+
+    if (args.logscale > 0)
+        plot.xtics().logscale(args.logscale);        
+        
+    plot.drawCurve(x, y);
+    plot.drawPoints(x, y).pointType(6);
     // Create figure to hold plot
     Figure fig = {{plot}};
     //fig.title(title);
@@ -106,4 +107,13 @@ void plot(vec& y, plot_args &args)
 
     // Show the plot in a pop-up window
     canvas.show();  
+}
+
+void plot(vec& y, plot_args &args)
+{
+    double total_width = args.total_width;
+    int N = args.N;
+    //sciplot::Vec x = sciplot::linspace(0.0, total_width, N-1);        
+    vec x = arma::linspace(0.0, total_width, N-1);
+    plot(x, y, args);
 }

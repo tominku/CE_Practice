@@ -55,36 +55,10 @@ int main() {
         printf("doping: 1e%d, x_sol: %f \n", 10+k, x_i);
     }
 
-    stdvec std_doping_list = conv_to<stdvec>::from(doping_list);
-    stdvec std_phis = conv_to<stdvec>::from(phis);
-    plot(std_doping_list, std_phis);
-}
+    plot_args args;        
+    args.x_label = "Doping Density (/cm^3)";
+    args.y_label = "Electrostatic Potential(V)";
+    args.logscale = 10;
 
-
-void plot(stdvec &doping_list, stdvec &phis)
-{
-    Plot2D plot;
-
-    plot.xlabel("Doping Density (/cm^3)");
-    plot.ylabel("Electrostatic Potential(V)");
-
-    // Set the legend to be on the bottom along the horizontal
-    plot.legend()
-        .atOutsideBottom()
-        .displayHorizontal()
-        .displayExpandWidthBy(2);
-    plot.grid().show();
-
-    plot.xtics().logscale(10);
-
-    plot.drawPoints(doping_list, phis).pointType(6).pointSize(2);
-    plot.drawCurve(doping_list, phis);
-    // Create figure to hold plot
-    Figure fig = {{plot}};
-    // Create canvas to hold figure
-    Canvas canvas = {{fig}};
-    canvas.size(800, 400);
-
-    // Show the plot in a pop-up window
-    canvas.show(); 
+    plot(doping_list, phis, args);
 }
