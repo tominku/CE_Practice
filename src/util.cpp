@@ -116,6 +116,6 @@ void plot(vec& y, plot_args &args)
     double total_width = args.total_width;
     int N = args.N;
     //sciplot::Vec x = sciplot::linspace(0.0, total_width, N-1);        
-    vec x = arma::linspace(0.0, total_width, N-1);
+    vec x = arma::linspace(0.0, total_width, N);
     plot(x, y, args);
 }

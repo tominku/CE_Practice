@@ -84,8 +84,8 @@ int main() {
     //vec phi_0(N, arma::fill::ones);    
     vec phi_0(N, arma::fill::zeros);
     //vec phi_0(N, arma::fill::ones);
-    double bc_left = 0.33;
-    double bc_right = 0.33;
+    double bc_left = 0.33374;
+    double bc_right = 0.33374;
     phi_0(0) = bc_left;
     phi_0(N - 1) = bc_right;
     int num_iters = 30;
