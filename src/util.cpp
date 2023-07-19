@@ -66,13 +66,20 @@ std::pair<mat, vec> construct_A_b_poisson(double total_width, int N,
     return std::pair<mat, vec>(A, b);    
 }
 
-void plot(double total_width, int N, vec& y)
+struct plot_args{
+    double total_width=5.0;
+    int N=10;
+    string x_label="Position (nm)";
+    string y_label="Potential (V)";
+};
+
+void plot(vec& y, plot_args &args)
 {
     stdvec solution_vec = conv_to<stdvec>::from(y);
 
     Plot2D plot;
-    plot.xlabel("Position (nm)");
-    plot.ylabel("Potential (V)");
+    plot.xlabel(args.x_label);
+    plot.ylabel(args.y_label);
 
     // Set the x and y ranges
     //plot.xrange(0.0, 5);
@@ -85,15 +92,17 @@ void plot(double total_width, int N, vec& y)
         .displayExpandWidthBy(2);
     plot.grid().show();
     
-    //sciplot::linspace(0.0, 6.0, N)
-    sciplot::Vec x = sciplot::linspace(0.0, total_width, N);
-    plot.drawCurve(x, solution_vec).label("Potential");
-    plot.drawPoints(x, solution_vec).pointType(6).label("Potential");
+    double total_width = args.total_width;
+    int N = args.N;
+    sciplot::Vec x = sciplot::linspace(0.0, total_width, N-1);
+    plot.drawCurve(x, solution_vec);
+    plot.drawPoints(x, solution_vec).pointType(6);
     // Create figure to hold plot
     Figure fig = {{plot}};
+    //fig.title(title);
     // Create canvas to hold figure
     Canvas canvas = {{fig}};
-    canvas.size(800, 400);
+    canvas.size(600, 400);
 
     // Show the plot in a pop-up window
     canvas.show();  

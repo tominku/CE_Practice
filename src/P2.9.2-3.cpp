@@ -8,12 +8,14 @@ int main() {
 
     int N = 61;
     double total_width = 6.0;    
+    double t_ox = 0.5;
+    double t_si = 5;
 
     // matrix construction
-    pairlist width_eps_list;    
-    width_eps_list.push_back(std::pair<double, double>(0.5, 3.9));
-    width_eps_list.push_back(std::pair<double, double>(5, 11.7));
-    width_eps_list.push_back(std::pair<double, double>(0.5, 3.9));
+    pairlist width_eps_list;        
+    width_eps_list.push_back(std::pair<double, double>(t_ox, 3.9));
+    width_eps_list.push_back(std::pair<double, double>(t_si, 11.7));
+    width_eps_list.push_back(std::pair<double, double>(t_ox, 3.9));
 
     // width_eps_list.push_back(std::pair<double, double>(1.5, 3.9));
     // width_eps_list.push_back(std::pair<double, double>(3, 11.7));
@@ -46,13 +48,30 @@ int main() {
     }
     b(b.n_elem - 1) = 0.33374;
 
-    // matrix scaling
-    // double eps_0 = 8.854 * 1e-12; // in meter
-    // A.rows(1, N-2) = A.rows(1, N-2) / eps_0;
-    // b(span(1, N-2)) = b(span(1, N-2)) / eps_0;
-    
-    //A.print("A:");
-
     vec sol_vec = arma::solve(A, b);  
-    plot(total_width, N, sol_vec);
+
+    plot_args args;
+    args.total_width = total_width;
+    args.N = N;    
+
+    // Potential
+    args.y_label = "Potential (V)";
+    plot(sol_vec, args);
+
+    // Electron Density
+    double T = 300;
+    double n_int = 1e10;
+    double segment_width = total_width / (N - 1);
+    int ox_si_boundary_k = int(t_ox / segment_width);
+    int si_ox_boundary_k = int((t_ox + t_si) / segment_width);
+    vec ed(N, arma::fill::zeros);
+    ed(span(ox_si_boundary_k, si_ox_boundary_k)) = n_int * exp(q * sol_vec(span(ox_si_boundary_k, si_ox_boundary_k)) / (k_B * T));
+    args.y_label = "Electron Density (/cm^3)";
+    plot(ed, args);
+
+    // Hole Density
+    vec hd(N, arma::fill::zeros);
+    hd(span(ox_si_boundary_k, si_ox_boundary_k)) = n_int * exp(- q * sol_vec(span(ox_si_boundary_k, si_ox_boundary_k)) / (k_B * T));
+    args.y_label = "Hole Density (/cm^3)";
+    plot(hd, args);
 }
