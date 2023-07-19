@@ -23,18 +23,18 @@ vec r(vec phi)
 {   
     vec r_k(N, arma::fill::zeros);
 
-    r_k(span(1, interface1_i-1-1)) = (eps_ox/deltaX) * (-2*phi(span(1, interface1_i-1-1)) + phi(span(0, interface1_i-1-1-1)) + phi(span(2, interface1_i-1)));
+    r_k(span(1, interface1_i-1-1)) = (eps_ox) * (-2*phi(span(1, interface1_i-1-1)) + phi(span(0, interface1_i-1-1-1)) + phi(span(2, interface1_i-1)));
     
-    r_k(interface1_i-1) = -(eps_ox/deltaX)*phi(interface1_i-1) - (eps_si/deltaX)*phi(interface1_i-1) + 
-        (eps_ox/deltaX)*phi(interface1_i-1-1) + (eps_si/deltaX)*phi(interface1_i-1+1) + 0.5 * deltaX*q*dop;
+    r_k(interface1_i-1) = -(eps_ox)*phi(interface1_i-1) - (eps_si)*phi(interface1_i-1) + 
+        (eps_ox)*phi(interface1_i-1-1) + (eps_si)*phi(interface1_i-1+1) - 0.5 * deltaX*deltaX*q*dop;
 
-    r_k(span(1, N-1-1)) = (eps_si/deltaX) * (-2*phi(span(1, N-1-1)) + phi(span(0, N-1-1-1)) + phi(span(2, N-1)));    
-    r_k(span(si_begin_i-1, si_end_i-1)) += deltaX*q*dop;
+    r_k(span(si_begin_i-1, si_end_i-1)) = (eps_si) * (-2*phi(span(si_begin_i-1, si_end_i-1)) + phi(span(si_begin_i-2, si_end_i-2)) + phi(span(si_begin_i, si_end_i)));    
+    r_k(span(si_begin_i-1, si_end_i-1)) -= deltaX*deltaX*q*dop;
 
-    r_k(interface2_i-1) = -(eps_si/deltaX)*phi(interface2_i-1) - (eps_ox/deltaX)*phi(interface2_i-1) + 
-        (eps_si/deltaX)*phi(interface2_i-1-1) + (eps_ox/deltaX)*phi(interface2_i-1+1) + 0.5 * deltaX*q*dop;
+    r_k(interface2_i-1) = -(eps_si)*phi(interface2_i-1) - (eps_ox)*phi(interface2_i-1) + 
+        (eps_si)*phi(interface2_i-1-1) + (eps_ox)*phi(interface2_i-1+1) - 0.5 * deltaX*deltaX*q*dop;
 
-    r_k(span(interface2_i-1+1, N-1-1)) = (eps_ox/deltaX) * (-2*phi(span(interface2_i-1+1, N-1-1)) + phi(span(interface2_i-1, N-1-1-1)) + phi(span(interface2_i-1+1+1, N-1-1+1)));
+    r_k(span(interface2_i-1+1, N-1-1)) = (eps_ox) * (-2*phi(span(interface2_i-1+1, N-1-1)) + phi(span(interface2_i-1, N-1-1-1)) + phi(span(interface2_i-1+1+1, N-1-1+1)));
     
     return r_k;
 }
@@ -47,33 +47,33 @@ mat jacobian(vec phi)
     jac(N-1, N-1) = 1.0;    
     for (int i=2; i<=(interface1_i - 1); ++i)    
     {
-        jac(i - 1, i + 1 - 1) = eps_ox / deltaX;
-        jac(i - 1, i - 1) =  -2.0 * eps_ox / deltaX;        
-        jac(i - 1, i - 1 - 1) = eps_ox / deltaX; 
+        jac(i - 1, i + 1 - 1) = eps_ox ;
+        jac(i - 1, i - 1) =  -2.0 * eps_ox ;        
+        jac(i - 1, i - 1 - 1) = eps_ox ; 
     }    
 
     int i = interface1_i;
-    jac(i - 1, i + 1 - 1) = eps_ox / deltaX;
-    jac(i - 1, i - 1) =  -2.0 * eps_ox / deltaX;        
-    jac(i - 1, i - 1 - 1) = eps_ox / deltaX; 
+    jac(i - 1, i + 1 - 1) = eps_ox ;
+    jac(i - 1, i - 1) =  -2.0 * eps_ox ;        
+    jac(i - 1, i - 1 - 1) = eps_ox ; 
 
     for (int i=si_begin_i; i<=si_end_i; ++i)
     {
-        jac(i - 1, i + 1 - 1) = eps_si / deltaX;
-        jac(i - 1, i - 1) =  -2.0 * eps_si / deltaX;        
-        jac(i - 1, i - 1 - 1) = eps_si / deltaX; 
+        jac(i - 1, i + 1 - 1) = eps_si ;
+        jac(i - 1, i - 1) =  -2.0 * eps_si ;        
+        jac(i - 1, i - 1 - 1) = eps_si ; 
     }
 
     i = interface2_i;
-    jac(i - 1, i + 1 - 1) = eps_ox / deltaX;
-    jac(i - 1, i - 1) =  -2.0 * eps_ox / deltaX;        
-    jac(i - 1, i - 1 - 1) = eps_ox / deltaX; 
+    jac(i - 1, i + 1 - 1) = eps_ox ;
+    jac(i - 1, i - 1) =  -2.0 * eps_ox ;        
+    jac(i - 1, i - 1 - 1) = eps_ox ; 
 
     for (int i=(interface2_i + 1); i<=(N-1); ++i)    
     {
-        jac(i - 1, i + 1 - 1) = eps_ox / deltaX;
-        jac(i - 1, i - 1) =  -2.0 * eps_ox / deltaX;        
-        jac(i - 1, i - 1 - 1) = eps_ox / deltaX; 
+        jac(i - 1, i + 1 - 1) = eps_ox ;
+        jac(i - 1, i - 1) =  -2.0 * eps_ox ;        
+        jac(i - 1, i - 1 - 1) = eps_ox ; 
     }
 
     return jac;
@@ -84,8 +84,8 @@ int main() {
     //vec phi_0(N, arma::fill::ones);    
     vec phi_0(N, arma::fill::zeros);
     //vec phi_0(N, arma::fill::ones);
-    double bc_left = 0;
-    double bc_right = 0;
+    double bc_left = 0.33;
+    double bc_right = 0.33;
     phi_0(0) = bc_left;
     phi_0(N - 1) = bc_right;
     int num_iters = 30;
@@ -111,6 +111,7 @@ int main() {
     }
 
     phi_i.print("found solution (phi):");
+        
     // Potential
     plot_args args;
     args.total_width = 6.0;
