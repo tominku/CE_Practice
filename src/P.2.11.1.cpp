@@ -7,7 +7,7 @@ using namespace arma;
 const int N = 61;
 double deltaX = 0.1e-9; // in meter  
 double dop = 1e18 * 1e6; // in meter    
-int n_int = 1e10 * 1e6;;
+int n_int = 1e10 * 1e6;
 double T = 300;    
 double total_width = 6.0;    
 double t_ox = 0.5;
@@ -39,21 +39,25 @@ mat jacobian(vec phi)
     {
         jac(i - offset, i + 1 - offset) = eps_ox / deltaX;
         jac(i - offset, i - offset) =  -2.0 * eps_ox / deltaX;
-        jac(i - offset, i - 1 - offset) = eps_ox / deltaX; 
+        if (i > 2)
+            jac(i - offset, i - 1 - offset) = eps_ox / deltaX; 
     }
 
     for (int i=si_begin_i; i<=si_end_i; ++i)
     {
-        jac(i - 1, i + 1 - 1) = eps_si / deltaX;
-        jac(i - 1, i - 1) =  -2.0 * eps_si / deltaX - deltaX*q*n_int*exp(q*phi(i-1)/(k_B*T)) ;
-        jac(i - 1, i - 1 - 1) = eps_si / deltaX; 
+        jac(i - offset, i + 1 - offset) = eps_si / deltaX;
+        jac(i - offset, i - offset) =  -2.0 * eps_si / deltaX - deltaX*q*n_int*exp(q*phi(i-1)/(k_B*T));
+        if (i > 2)
+            jac(i - offset, i - 1 - offset) = eps_si / deltaX; 
     }
 
     for (int i=(interface2_i + 1); i<=(N-1); ++i)
     {
-        jac(i - 1, i + 1 - 1) = eps_ox / deltaX;
-        jac(i - 1, i - 1) =  -2.0 * eps_ox / deltaX;
-        jac(i - 1, i - 1 - 1) = eps_ox / deltaX; 
+        if (i < (N-1))   
+            jac(i - offset, i + 1 - offset) = eps_ox / deltaX;
+        jac(i - offset, i - offset) =  -2.0 * eps_ox / deltaX;
+        if (i > 2)
+            jac(i - offset, i - 1 - offset) = eps_ox / deltaX; 
     }
 
     return jac;
