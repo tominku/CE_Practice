@@ -7,7 +7,8 @@ using namespace arma;
 const int N = 61;
 double deltaX = 0.1e-9; // in meter  
 double dop = 1e18 * 1e6; // in meter    
-int n_int = 1e10 * 1e6;
+//int n_int = 1e10;
+double n_int = 1e16;
 double T = 300;    
 double total_width = 6.0;    
 double t_ox = 0.5;
@@ -65,7 +66,13 @@ mat jacobian(vec phi)
 
 int main() {
 
-    vec phi_0(N, arma::fill::ones);
+    //vec phi_0(N, arma::fill::ones);
+    //vec phi_0(N, arma::fill::zeros);
+    vec phi_0(N, arma::fill::randn);
+    double bc_left = 0;
+    double bc_right = 0;
+    phi_0(0) = bc_left;
+    phi_0(N - 1) = bc_right;
     int num_iters = 10;
     //mat xs(num_iters, 3, arma::fill::zeros); // each row i represents the solution at iter i.
     //mat residuals(num_iters, 3, arma::fill::zeros); // each row i represents the residual at iter i.    
@@ -76,11 +83,11 @@ int main() {
         mat jac = jacobian(phi_i);
         printf("test");
         // xs.row(i) = x_i.t();         
-        // residuals.row(i) = residual.t();
-        // mat jac = jacobian(x_i);
-        // vec delta_x = arma::solve(jac, -residual);
-        // x_i += delta_x;        
+        // residuals.row(i) = residual.t();        
+        vec delta_phi_i = arma::solve(jac, -residual);
+        phi_i(span(1, N - 1 - 1)) += delta_phi_i;        
         
+        phi_i.print("phi_i");
         // printf("[iter %d]   detal_x: %f   residual: %f\n", i, max(abs(delta_x)), max(abs(residual)));        
     }
 
