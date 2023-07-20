@@ -18,8 +18,8 @@ int interface2_i = 56;
 int si_begin_i = interface1_i + 1;
 int si_end_i = interface2_i - 1;
 //bool include_nonlinear_terms = true;
-bool include_nonlinear_terms = false;
-bool use_normalizer = false;
+bool include_nonlinear_terms = true;
+bool use_normalizer = true;
 
 // residual(phi): the size of r(phi) is N.
 vec r(vec phi)
@@ -113,7 +113,7 @@ mat jacobian(vec phi)
 
 double integrate_n_over_si(vec n)
 {    
-    double integrated = sum(n(span(0, N-1-1)) * deltaX);
+    double integrated = sum(0.5*n(interface1_i-1)*deltaX + 0.5*n(interface2_i-1)*deltaX + n(span(si_begin_i-1, si_end_i-1)) * deltaX) / 1e4; // m^-2 => cm^-2
     return integrated;
 }
 
@@ -187,7 +187,7 @@ int main() {
     include_nonlinear_terms = true;
     double start_voltage = 0.33374;
     double experiment_gap = 0.1;
-    int num_experiments = 3;
+    int num_experiments = 10;
     vec boundary_voltages(num_experiments);
     for (int i=0; i<num_experiments; ++i)
     {
@@ -201,6 +201,11 @@ int main() {
     mat phis(N, num_experiments, arma::fill::zeros);
     char buf[100];  
     vec integrated_ns(num_experiments);
+    
+    plot_args args2;        
+    args2.x_label = "Gate Voltage (V)";
+    args2.y_label = "Integrated n (cm^{-2})";            
+
     for (int i=0; i<num_experiments; ++i)
     {
         double boundary_voltage = boundary_voltages(i);
@@ -216,6 +221,9 @@ int main() {
         args.labels.push_back("Test");
     }  
     plot(phis, args);      
+    vec gate_voltages = arma::linspace(start_voltage, boundary_voltages(num_experiments-1), num_experiments);
+    //args2.logscale_y = 10;
+    plot(gate_voltages, integrated_ns, args2);
    
     // Potential
     // plot_args args;

@@ -75,6 +75,7 @@ struct plot_args{
     string y_label="Potential (V)";
     std::vector<string> labels;
     int logscale = -1;
+    int logscale_y = -1;
 };
 
 void plot(mat& ys, plot_args &args)
@@ -139,6 +140,8 @@ void plot(vec& x, vec& y, plot_args &args)
 
     if (args.logscale > 0)
         plot.xtics().logscale(args.logscale);        
+    if (args.logscale_y > 0)
+        plot.ytics().logscale(args.logscale_y);                
 
     plot.drawCurve(x, y);
     plot.drawPoints(x, y).pointType(6);
