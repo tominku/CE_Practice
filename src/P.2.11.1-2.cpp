@@ -100,19 +100,22 @@ mat jacobian(vec phi)
     return jac;
 }
 
-int main() {
-
-    //vec phi_0(N, arma::fill::ones);    
+vec solve_phi(double boundary_potential)
+{
     vec phi_0(N, arma::fill::zeros);
     //vec phi_0(N, arma::fill::ones);
-    double bc_left = 0.33374;
-    double bc_right = 0.33374;
+    //vec phi_0(N, arma::fill::randn);
+    //double boundary_voltage = 0.33374;
+    //phi_0 *= boundary_potential;
+    double bc_left = boundary_potential;
+    double bc_right = boundary_potential;
     phi_0(0) = bc_left;
     phi_0(N - 1) = bc_right;
-    int num_iters = 30;
+    int num_iters = 20;
     //mat xs(num_iters, 3, arma::fill::zeros); // each row i represents the solution at iter i.
     //mat residuals(num_iters, 3, arma::fill::zeros); // each row i represents the residual at iter i.    
     vec phi_i = phi_0;
+    printf("boundary voltage: %f V", boundary_potential);
     for (int i=0; i<num_iters; i++)
     {
         vec residual = r(phi_i);
@@ -128,15 +131,70 @@ int main() {
         
         //phi_i.print("phi_i");
         //jac.print("jac");
-        printf("[iter %d]   detal_x: %f   residual: %f\n", i, max(abs(delta_phi_i)), max(abs(residual)));        
+        if (i % 5 == 0)
+            printf("[iter %d]   detal_x: %f   residual: %f\n", i, max(abs(delta_phi_i)), max(abs(residual)));        
     }
 
-    phi_i.print("found solution (phi):");
+    //phi_i.print("found solution (phi):");    
+    return phi_i;
+}
+
+// void compare_with_linear_solution()
+// {
+//     include_nonlinear_terms = false;
+//     vec phi_wo_n_p = solve_phi();
+
+//     include_nonlinear_terms = true;
+//     vec phi_w_n_p = solve_phi();
+
+//     mat phis(N, 2, arma::fill::zeros);
+//     phis(arma::span::all, 0) = phi_wo_n_p;
+//     phis(arma::span::all, 1) = phi_w_n_p;
         
-    // Potential
+//     // Potential
+//     plot_args args;
+//     args.total_width = 6.0;
+//     args.N = N;    
+//     args.y_label = "Potential (V)";
+//     args.labels.push_back("without nonlinear");
+//     args.labels.push_back("with nonlinear");
+//     plot(phis, args);
+// }
+
+
+int main() {    
+
+    include_nonlinear_terms = true;
+    double start_voltage = 0.33374;
+    double experiment_gap = 0.05;
+    int num_experiments = 4;
+    vec boundary_voltages(num_experiments);
+    for (int i=0; i<num_experiments; ++i)
+    {
+        boundary_voltages(i) = start_voltage + experiment_gap * i;
+    }
+
     plot_args args;
     args.total_width = 6.0;
     args.N = N;    
-    args.y_label = "Potential (V)";
-    plot(phi_i, args);
+    args.y_label = "Potential (V)";    
+    mat phis(N, num_experiments, arma::fill::zeros);
+    char buf[100];  
+    for (int i=0; i<num_experiments; ++i)
+    {
+        double boundary_voltage = boundary_voltages(i);
+        vec phi = solve_phi(boundary_voltage);    
+        phis(arma::span::all, i) = phi;
+        sprintf(buf, "BC %f", boundary_voltage);
+        //args.labels.push_back(std::string::);
+        args.labels.push_back("Test");
+    }  
+    plot(phis, args);      
+   
+    // Potential
+    // plot_args args;
+    // args.total_width = 6.0;
+    // args.N = N;    
+    // args.y_label = "Potential (V)";    
+    // plot(phi, args);
 }

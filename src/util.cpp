@@ -73,8 +73,50 @@ struct plot_args{
     int N=10;
     string x_label="Position (nm)";
     string y_label="Potential (V)";
+    std::vector<string> labels;
     int logscale = -1;
 };
+
+void plot(mat& ys, plot_args &args)
+{
+    double total_width = args.total_width;
+    int N = args.N;
+    //sciplot::Vec x = sciplot::linspace(0.0, total_width, N-1);        
+    vec x = arma::linspace(0.0, total_width, N);
+
+    Plot2D plot;
+    plot.xlabel(args.x_label);
+    plot.ylabel(args.y_label);
+
+    // Set the x and y ranges
+    //plot.xrange(0.0, 5);
+    //plot.yrange(-3, 3);
+
+    // Set the legend to be on the bottom along the horizontal
+    plot.legend()
+        .atOutsideBottom()
+        .displayHorizontal()
+        .displayExpandWidthBy(2);
+    plot.grid().show();
+
+    if (args.logscale > 0)
+        plot.xtics().logscale(args.logscale);        
+
+    for (int i=0; i<ys.n_cols; ++i)
+    {
+        vec y = ys(arma::span::all, i);
+        plot.drawCurve(x, y).label(args.labels[i]);  
+    }    
+    // Create figure to hold plot
+    Figure fig = {{plot}};
+    //fig.title(title);
+    // Create canvas to hold figure
+    Canvas canvas = {{fig}};
+    canvas.size(600, 400);
+
+    // Show the plot in a pop-up window
+    canvas.show();     
+}
 
 void plot(vec& x, vec& y, plot_args &args)
 {
