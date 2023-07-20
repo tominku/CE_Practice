@@ -12,7 +12,7 @@ double n_int = 1e16;
 double T = 300;    
 // double total_width = 6.0;    
 // double t_ox = 0.5;
-// double t_si = 5;
+double t_si = 5;
 int interface1_i = 6;
 int interface2_i = 56;
 int si_begin_i = interface1_i + 1;
@@ -111,7 +111,13 @@ mat jacobian(vec phi)
     return jac;
 }
 
-vec solve_phi(double boundary_potential)
+double integrate_n_over_si(vec n)
+{    
+    double integrated = sum(n(span(0, N-1-1)) * deltaX);
+    return integrated;
+}
+
+std::pair<vec, vec> solve_phi(double boundary_potential)
 {
     vec phi_0(N, arma::fill::zeros);
     //vec phi_0(N, arma::fill::ones);
@@ -147,7 +153,9 @@ vec solve_phi(double boundary_potential)
     }
 
     //phi_i.print("found solution (phi):");    
-    return phi_i;
+    vec n = n_int * exp(q * phi_i / (k_B * T));
+    std::pair<vec, vec> result(phi_i, n);
+    return result;
 }
 
 // void compare_with_linear_solution()
@@ -179,7 +187,7 @@ int main() {
     include_nonlinear_terms = true;
     double start_voltage = 0.33374;
     double experiment_gap = 0.1;
-    int num_experiments = 10;
+    int num_experiments = 3;
     vec boundary_voltages(num_experiments);
     for (int i=0; i<num_experiments; ++i)
     {
@@ -192,11 +200,17 @@ int main() {
     args.y_label = "Potential (V)";    
     mat phis(N, num_experiments, arma::fill::zeros);
     char buf[100];  
+    vec integrated_ns(num_experiments);
     for (int i=0; i<num_experiments; ++i)
     {
         double boundary_voltage = boundary_voltages(i);
-        vec phi = solve_phi(boundary_voltage);    
-        phis(arma::span::all, i) = phi;
+        std::pair<vec, vec> result = solve_phi(boundary_voltage);    
+        vec phi = result.first;
+        vec n = result.second;
+        //phis(arma::span::all, i) = phi;
+        double integrated_n_over_si = integrate_n_over_si(n);
+        integrated_ns[i] = integrated_n_over_si;
+        phis(arma::span::all, i) = n;
         sprintf(buf, "BC %f", boundary_voltage);
         //args.labels.push_back(std::string::);
         args.labels.push_back("Test");
