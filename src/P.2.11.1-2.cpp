@@ -17,7 +17,8 @@ int interface1_i = 6;
 int interface2_i = 56;
 int si_begin_i = interface1_i + 1;
 int si_end_i = interface2_i - 1;
-bool include_nonlinear_terms = true;
+//bool include_nonlinear_terms = true;
+bool include_nonlinear_terms = false;
 bool use_normalizer = true;
 
 // residual(phi): the size of r(phi) is N.
@@ -75,7 +76,7 @@ mat jacobian(vec phi)
     jac(i - 1, i + 1 - 1) = eps_si ;
     jac(i - 1, i - 1) =  -eps_ox - eps_si ;        
     if (include_nonlinear_terms)        
-        jac(i - 1, i - 1) -= 0.5*deltaX*deltaX*q*n_int*exp(q*phi(i-1)/(k_B*T));
+        jac(i - 1, i - 1) -= 0.5*deltaX*deltaX*q*n_int*(q/(k_B*T))*exp(q*phi(i-1)/(k_B*T));
     jac(i - 1, i - 1 - 1) = eps_ox ; 
 
     // silicon
@@ -84,7 +85,7 @@ mat jacobian(vec phi)
         jac(i - 1, i + 1 - 1) = eps_si ;
         jac(i - 1, i - 1) =  -2.0 * eps_si ;
         if (include_nonlinear_terms)        
-            jac(i - 1, i - 1) -= deltaX*deltaX*q*n_int*exp(q*phi(i-1)/(k_B*T));
+            jac(i - 1, i - 1) -= deltaX*deltaX*q*n_int*(q/(k_B*T))*exp(q*phi(i-1)/(k_B*T));
         jac(i - 1, i - 1 - 1) = eps_si ; 
     }
 
@@ -93,9 +94,10 @@ mat jacobian(vec phi)
     jac(i - 1, i + 1 - 1) = eps_ox ;
     jac(i - 1, i - 1) =  -eps_ox - eps_si ; 
     if (include_nonlinear_terms)        
-        jac(i - 1, i - 1) -= 0.5*deltaX*deltaX*q*n_int*exp(q*phi(i-1)/(k_B*T));
+        jac(i - 1, i - 1) -= 0.5*deltaX*deltaX*q*n_int*(q/(k_B*T))*exp(q*phi(i-1)/(k_B*T));
     jac(i - 1, i - 1 - 1) = eps_si ; 
 
+    // oxide
     for (int i=(interface2_i + 1); i<=(N-1); ++i)    
     {
         jac(i - 1, i + 1 - 1) = eps_ox ;
@@ -172,11 +174,12 @@ vec solve_phi(double boundary_potential)
 
 
 int main() {    
-
+    printf("nl term: %f", (q/(k_B*T)));
+    
     include_nonlinear_terms = true;
     double start_voltage = 0.33374;
     double experiment_gap = 0.1;
-    int num_experiments = 5;
+    int num_experiments = 10;
     vec boundary_voltages(num_experiments);
     for (int i=0; i<num_experiments; ++i)
     {
