@@ -8,8 +8,8 @@ const int N = 61;
 double deltaX = 0.1e-9; // in meter  
 double dop = 1e18 * 1e6; // in meter    
 //int n_int = 1e10;
-//double n_int = 1e16;
-//double T = 300;    
+double n_int = 1e16;
+double T = 300;    
 // double total_width = 6.0;    
 // double t_ox = 0.5;
 // double t_si = 5;
@@ -17,23 +17,31 @@ int interface1_i = 6;
 int interface2_i = 56;
 int si_begin_i = interface1_i + 1;
 int si_end_i = interface2_i - 1;
+bool include_nonlinear_terms = true;
 
 // residual(phi): the size of r(phi) is N.
 vec r(vec phi)
 {   
     vec r_k(N, arma::fill::zeros);
 
+    // oxide
     r_k(span(1, interface1_i-1-1)) = (eps_ox) * (-2*phi(span(1, interface1_i-1-1)) + phi(span(0, interface1_i-1-1-1)) + phi(span(2, interface1_i-1)));
     
+    // interface 1
     r_k(interface1_i-1) = -(eps_ox)*phi(interface1_i-1) - (eps_si)*phi(interface1_i-1) + 
         (eps_ox)*phi(interface1_i-1-1) + (eps_si)*phi(interface1_i-1+1) - 0.5 * deltaX*deltaX*q*dop;
 
+    // silicon
     r_k(span(si_begin_i-1, si_end_i-1)) = (eps_si) * (-2*phi(span(si_begin_i-1, si_end_i-1)) + phi(span(si_begin_i-2, si_end_i-2)) + phi(span(si_begin_i, si_end_i)));    
-    r_k(span(si_begin_i-1, si_end_i-1)) -= deltaX*deltaX*q*dop;
+    r_k(span(si_begin_i-1, si_end_i-1)) -= deltaX*deltaX*q*dop;    
+    if (include_nonlinear_terms)
+        r_k(span(si_begin_i-1, si_end_i-1)) -= deltaX*deltaX*q*n_int*exp(q*phi(span(si_begin_i-1, si_end_i-1))/(k_B*T));
 
+    // interface 2
     r_k(interface2_i-1) = -(eps_si)*phi(interface2_i-1) - (eps_ox)*phi(interface2_i-1) + 
         (eps_si)*phi(interface2_i-1-1) + (eps_ox)*phi(interface2_i-1+1) - 0.5 * deltaX*deltaX*q*dop;
 
+    // oxide
     r_k(span(interface2_i-1+1, N-1-1)) = (eps_ox) * (-2*phi(span(interface2_i-1+1, N-1-1)) + phi(span(interface2_i-1, N-1-1-1)) + phi(span(interface2_i-1+1+1, N-1-1+1)));
     
     return r_k;
@@ -57,10 +65,13 @@ mat jacobian(vec phi)
     jac(i - 1, i - 1) =  -2.0 * eps_ox ;        
     jac(i - 1, i - 1 - 1) = eps_ox ; 
 
+    // silicon
     for (int i=si_begin_i; i<=si_end_i; ++i)
     {
         jac(i - 1, i + 1 - 1) = eps_si ;
-        jac(i - 1, i - 1) =  -2.0 * eps_si ;        
+        jac(i - 1, i - 1) =  -2.0 * eps_si ;
+        if (include_nonlinear_terms)        
+            jac(i - 1, i - 1) -= deltaX*deltaX*q*n_int*exp(q*phi(i-1)/(k_B*T));
         jac(i - 1, i - 1 - 1) = eps_si ; 
     }
 

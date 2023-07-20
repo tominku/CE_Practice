@@ -8,8 +8,8 @@ const int N = 61;
 double deltaX = 0.1e-9; // in meter  
 double dop = 1e18 * 1e6; // in meter    
 //int n_int = 1e10;
-//double n_int = 1e16;
-//double T = 300;    
+double n_int = 1e16;
+double T = 300;    
 // double total_width = 6.0;    
 // double t_ox = 0.5;
 // double t_si = 5;
@@ -62,6 +62,8 @@ mat jacobian(vec phi)
         jac(i - 1, i + 1 - 1) = eps_si ;
         jac(i - 1, i - 1) =  -2.0 * eps_si ;        
         jac(i - 1, i - 1 - 1) = eps_si ; 
+
+        
     }
 
     i = interface2_i;
