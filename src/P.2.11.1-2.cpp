@@ -30,6 +30,8 @@ vec r(vec phi)
     // interface 1
     r_k(interface1_i-1) = -(eps_ox)*phi(interface1_i-1) - (eps_si)*phi(interface1_i-1) + 
         (eps_ox)*phi(interface1_i-1-1) + (eps_si)*phi(interface1_i-1+1) - 0.5 * deltaX*deltaX*q*dop;
+    if (include_nonlinear_terms)
+        r_k(interface1_i-1) -= deltaX*deltaX*q*n_int*exp(q*phi(interface1_i-1)/(k_B*T));
 
     // silicon
     r_k(span(si_begin_i-1, si_end_i-1)) = (eps_si) * (-2*phi(span(si_begin_i-1, si_end_i-1)) + phi(span(si_begin_i-2, si_end_i-2)) + phi(span(si_begin_i, si_end_i)));    
@@ -40,6 +42,8 @@ vec r(vec phi)
     // interface 2
     r_k(interface2_i-1) = -(eps_si)*phi(interface2_i-1) - (eps_ox)*phi(interface2_i-1) + 
         (eps_si)*phi(interface2_i-1-1) + (eps_ox)*phi(interface2_i-1+1) - 0.5 * deltaX*deltaX*q*dop;
+    if (include_nonlinear_terms)
+        r_k(interface2_i-1) -= deltaX*deltaX*q*n_int*exp(q*phi(interface2_i-1)/(k_B*T));
 
     // oxide
     r_k(span(interface2_i-1+1, N-1-1)) = (eps_ox) * (-2*phi(span(interface2_i-1+1, N-1-1)) + phi(span(interface2_i-1, N-1-1-1)) + phi(span(interface2_i-1+1+1, N-1-1+1)));
@@ -60,9 +64,12 @@ mat jacobian(vec phi)
         jac(i - 1, i - 1 - 1) = eps_ox ; 
     }    
 
+    // interface 1
     int i = interface1_i;
     jac(i - 1, i + 1 - 1) = eps_ox ;
     jac(i - 1, i - 1) =  -2.0 * eps_ox ;        
+    if (include_nonlinear_terms)        
+        jac(i - 1, i - 1) -= 0.5*deltaX*deltaX*q*n_int*exp(q*phi(i-1)/(k_B*T));
     jac(i - 1, i - 1 - 1) = eps_ox ; 
 
     // silicon
@@ -75,9 +82,12 @@ mat jacobian(vec phi)
         jac(i - 1, i - 1 - 1) = eps_si ; 
     }
 
+    // interface 2
     i = interface2_i;
     jac(i - 1, i + 1 - 1) = eps_ox ;
     jac(i - 1, i - 1) =  -2.0 * eps_ox ;        
+    if (include_nonlinear_terms)        
+        jac(i - 1, i - 1) -= 0.5*deltaX*deltaX*q*n_int*exp(q*phi(i-1)/(k_B*T));
     jac(i - 1, i - 1 - 1) = eps_ox ; 
 
     for (int i=(interface2_i + 1); i<=(N-1); ++i)    
