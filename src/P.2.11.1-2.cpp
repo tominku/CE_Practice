@@ -58,7 +58,7 @@ vec r(vec phi)
     return r_k;
 }
 
-// the jacobian matrix size is (N - 2) by (N - 2)
+// the jacobian matrix size is N by N
 mat jacobian(vec phi)
 {
     mat jac(N, N, arma::fill::zeros);    
