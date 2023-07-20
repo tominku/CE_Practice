@@ -19,7 +19,7 @@ int si_begin_i = interface1_i + 1;
 int si_end_i = interface2_i - 1;
 //bool include_nonlinear_terms = true;
 bool include_nonlinear_terms = false;
-bool use_normalizer = true;
+bool use_normalizer = false;
 
 // residual(phi): the size of r(phi) is N.
 vec r(vec phi)
