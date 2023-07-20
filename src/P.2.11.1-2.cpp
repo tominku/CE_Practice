@@ -18,6 +18,7 @@ int interface2_i = 56;
 int si_begin_i = interface1_i + 1;
 int si_end_i = interface2_i - 1;
 bool include_nonlinear_terms = true;
+bool use_normalizer = true;
 
 // residual(phi): the size of r(phi) is N.
 vec r(vec phi)
@@ -31,7 +32,7 @@ vec r(vec phi)
     r_k(interface1_i-1) = -(eps_ox)*phi(interface1_i-1) - (eps_si)*phi(interface1_i-1) + 
         (eps_ox)*phi(interface1_i-1-1) + (eps_si)*phi(interface1_i-1+1) - 0.5 * deltaX*deltaX*q*dop;
     if (include_nonlinear_terms)
-        r_k(interface1_i-1) -= deltaX*deltaX*q*n_int*exp(q*phi(interface1_i-1)/(k_B*T));
+        r_k(interface1_i-1) -= 0.5 * deltaX*deltaX*q*n_int*exp(q*phi(interface1_i-1)/(k_B*T));
 
     // silicon
     r_k(span(si_begin_i-1, si_end_i-1)) = (eps_si) * (-2*phi(span(si_begin_i-1, si_end_i-1)) + phi(span(si_begin_i-2, si_end_i-2)) + phi(span(si_begin_i, si_end_i)));    
@@ -43,11 +44,16 @@ vec r(vec phi)
     r_k(interface2_i-1) = -(eps_si)*phi(interface2_i-1) - (eps_ox)*phi(interface2_i-1) + 
         (eps_si)*phi(interface2_i-1-1) + (eps_ox)*phi(interface2_i-1+1) - 0.5 * deltaX*deltaX*q*dop;
     if (include_nonlinear_terms)
-        r_k(interface2_i-1) -= deltaX*deltaX*q*n_int*exp(q*phi(interface2_i-1)/(k_B*T));
+        r_k(interface2_i-1) -= 0.5 * deltaX*deltaX*q*n_int*exp(q*phi(interface2_i-1)/(k_B*T));
 
     // oxide
     r_k(span(interface2_i-1+1, N-1-1)) = (eps_ox) * (-2*phi(span(interface2_i-1+1, N-1-1)) + phi(span(interface2_i-1, N-1-1-1)) + phi(span(interface2_i-1+1+1, N-1-1+1)));
     
+    if (use_normalizer)
+        r_k(span(1, N-1-1)) /= eps_0;
+    //r_k(span(0, N-1)) /= eps_0;
+        
+
     return r_k;
 }
 
@@ -66,8 +72,8 @@ mat jacobian(vec phi)
 
     // interface 1
     int i = interface1_i;
-    jac(i - 1, i + 1 - 1) = eps_ox ;
-    jac(i - 1, i - 1) =  -2.0 * eps_ox ;        
+    jac(i - 1, i + 1 - 1) = eps_si ;
+    jac(i - 1, i - 1) =  -eps_ox - eps_si ;        
     if (include_nonlinear_terms)        
         jac(i - 1, i - 1) -= 0.5*deltaX*deltaX*q*n_int*exp(q*phi(i-1)/(k_B*T));
     jac(i - 1, i - 1 - 1) = eps_ox ; 
@@ -85,10 +91,10 @@ mat jacobian(vec phi)
     // interface 2
     i = interface2_i;
     jac(i - 1, i + 1 - 1) = eps_ox ;
-    jac(i - 1, i - 1) =  -2.0 * eps_ox ;        
+    jac(i - 1, i - 1) =  -eps_ox - eps_si ; 
     if (include_nonlinear_terms)        
         jac(i - 1, i - 1) -= 0.5*deltaX*deltaX*q*n_int*exp(q*phi(i-1)/(k_B*T));
-    jac(i - 1, i - 1 - 1) = eps_ox ; 
+    jac(i - 1, i - 1 - 1) = eps_si ; 
 
     for (int i=(interface2_i + 1); i<=(N-1); ++i)    
     {
@@ -96,6 +102,9 @@ mat jacobian(vec phi)
         jac(i - 1, i - 1) =  -2.0 * eps_ox ;        
         jac(i - 1, i - 1 - 1) = eps_ox ; 
     }
+
+    if (use_normalizer)
+        jac(span(1, N-1-1), span(1, N-1-1)) /= eps_0;
 
     return jac;
 }
@@ -111,7 +120,7 @@ vec solve_phi(double boundary_potential)
     double bc_right = boundary_potential;
     phi_0(0) = bc_left;
     phi_0(N - 1) = bc_right;
-    int num_iters = 20;
+    int num_iters = 40;
     //mat xs(num_iters, 3, arma::fill::zeros); // each row i represents the solution at iter i.
     //mat residuals(num_iters, 3, arma::fill::zeros); // each row i represents the residual at iter i.    
     vec phi_i = phi_0;
@@ -131,8 +140,8 @@ vec solve_phi(double boundary_potential)
         
         //phi_i.print("phi_i");
         //jac.print("jac");
-        if (i % 5 == 0)
-            printf("[iter %d]   detal_x: %f   residual: %f\n", i, max(abs(delta_phi_i)), max(abs(residual)));        
+        if (i % 1 == 0)
+            printf("[iter %d]   detal_x: %f   residual: %f\n", i, max(abs(delta_phi_i)), sum(abs(residual(span(1, N-1-1)))));        
     }
 
     //phi_i.print("found solution (phi):");    
@@ -166,8 +175,8 @@ int main() {
 
     include_nonlinear_terms = true;
     double start_voltage = 0.33374;
-    double experiment_gap = 0.05;
-    int num_experiments = 4;
+    double experiment_gap = 0.1;
+    int num_experiments = 5;
     vec boundary_voltages(num_experiments);
     for (int i=0; i<num_experiments; ++i)
     {
