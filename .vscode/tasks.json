@@ -30,9 +30,8 @@
                 "-o",
                 "${fileDirname}/../bin/${fileBasenameNoExtension}",
                 "-l",
-                "armadillo",
-                "--std",
-                "c++20"                
+                "armadillo",     
+                "-lfmt"                          
             ],
             "options": {
                 "cwd": "${fileDirname}"

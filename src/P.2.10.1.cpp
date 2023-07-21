@@ -18,7 +18,7 @@ void plot(stdvec &xs, stdvec &residuals);
 
 int main() {
 
-    double x_0 = 2;    
+    double x_0 = -2;    
     int num_iters = 20;
     stdvec xs;
     stdvec residuals;

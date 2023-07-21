@@ -14,6 +14,9 @@ const double k_B = 1.380662e-23; // (J/K)
 double eps_0 = 8.854187817 * 1e-12; // (F/m)
 double eps_ox = eps_0 * 3.9;
 double eps_si = eps_0 * 11.7;
+double h = 6.62617e-34;
+double h_angular = h / (2.0 * 3.14);
+double m_0 = 9.109534e-31;
 
 // A function that matches node index i to permitivity (eps).
 // i starts from 1.

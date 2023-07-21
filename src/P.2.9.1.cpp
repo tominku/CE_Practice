@@ -11,5 +11,5 @@ int main() {
     double T = 300; // (K)
     double phi = asinh(dop / n_int) * k_B * T / q;
 
-    printf("phi: %f", phi);
+    printf("phi: %f \n", phi);
 }

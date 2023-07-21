@@ -5,6 +5,7 @@ using namespace arma;
 using namespace std; 
 using namespace sciplot;
 typedef std::vector<double> stdvec;
+#include "util.cpp"
 
 int main() {
 
@@ -37,7 +38,12 @@ int main() {
     vec k_squared = (1.0 / deltaX_squared) * k_deltaX_squared;
     vec k = sqrt(k_squared);
     k.print("k:");
-    
+
+    // Energy
+    double m = 0.19 * m_0;
+    vec E = h_angular * h_angular * k_squared / (2.0 * m);
+    E.print("E:");    
+
     vec n = k * a / double(3.14);
     n.print("n:");
     eigvals.print("eigen values:");
@@ -93,7 +99,7 @@ int main() {
         .displayExpandWidthBy(2);
     plot.grid().show();
 
-    Vec x = linspace(0.0, 5, N);
+    Vec x = linspace(0.0, 5, N-1);
     plot.drawPoints(x, std_solution_vec).pointType(6);
     plot.drawCurve(x, std_solution_vec);
     // Create figure to hold plot
