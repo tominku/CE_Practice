@@ -26,6 +26,8 @@ int si_end_i = interface2_i - 1;
 //bool include_nonlinear_terms = true;
 bool include_nonlinear_terms = true;
 bool use_normalizer = false;
+double thermal = k_B * T / q;
+double coeff = deltaX*deltaX*q;
 
 // residual(phi): the size of r(phi) is N.
 vec r(vec phi, double boundary_voltage)
@@ -40,22 +42,22 @@ vec r(vec phi, double boundary_voltage)
     
     // interface 1
     r_k(interface1_i-1) = -(eps_ox)*phi(interface1_i-1) - (eps_si)*phi(interface1_i-1) + 
-        (eps_ox)*phi(interface1_i-1-1) + (eps_si)*phi(interface1_i-1+1) - 0.5 * deltaX*deltaX*q*dop;
+        (eps_ox)*phi(interface1_i-1-1) + (eps_si)*phi(interface1_i-1+1) - 0.5 * coeff*dop;
     if (include_nonlinear_terms)
-        r_k(interface1_i-1) -= 0.5 * deltaX*deltaX*q*n_int*exp(q*phi(interface1_i-1)/(k_B*T));
+        r_k(interface1_i-1) -= 0.5 * coeff*n_int*exp(phi(interface1_i-1)/thermal);
 
     // silicon
     r_k(span(si_begin_i-1, si_end_i-1)) = (eps_si) * ( -2*phi(span(si_begin_i-1, si_end_i-1)) +
         phi(span(si_begin_i-2, si_end_i-2)) + phi(span(si_begin_i, si_end_i)) );    
-    r_k(span(si_begin_i-1, si_end_i-1)) -= deltaX*deltaX*q*dop;    
+    r_k(span(si_begin_i-1, si_end_i-1)) -= coeff*dop;    
     if (include_nonlinear_terms)
-        r_k(span(si_begin_i-1, si_end_i-1)) -= deltaX*deltaX*q*n_int*exp(q*phi(span(si_begin_i-1, si_end_i-1))/(k_B*T));
+        r_k(span(si_begin_i-1, si_end_i-1)) -= coeff*n_int*exp(phi(span(si_begin_i-1, si_end_i-1))/thermal);
 
     // interface 2
     r_k(interface2_i-1) = -(eps_si)*phi(interface2_i-1) - (eps_ox)*phi(interface2_i-1) + 
-        (eps_si)*phi(interface2_i-1-1) + (eps_ox)*phi(interface2_i-1+1) - 0.5 * deltaX*deltaX*q*dop;
+        (eps_si)*phi(interface2_i-1-1) + (eps_ox)*phi(interface2_i-1+1) - 0.5 * coeff*dop;
     if (include_nonlinear_terms)
-        r_k(interface2_i-1) -= 0.5 * deltaX*deltaX*q*n_int*exp(q*phi(interface2_i-1)/(k_B*T));
+        r_k(interface2_i-1) -= 0.5 * coeff*n_int*exp(phi(interface2_i-1)/thermal);
 
     // oxide
     r_k(span(interface2_i-1+1, N-1-1)) = (eps_ox) * (-2*phi(span(interface2_i-1+1, N-1-1)) + phi(span(interface2_i-1, N-1-1-1)) + phi(span(interface2_i-1+1+1, N-1-1+1)));
@@ -90,7 +92,7 @@ mat jacobian(vec phi)
     jac(i - 1, i + 1 - 1) = eps_si ;
     jac(i - 1, i - 1) =  -eps_ox - eps_si ;        
     if (include_nonlinear_terms)        
-        jac(i - 1, i - 1) -= 0.5*deltaX*deltaX*q*n_int*(q/(k_B*T))*exp(q*phi(i-1)/(k_B*T));
+        jac(i - 1, i - 1) -= 0.5*coeff*n_int*(1.0/thermal)*exp(phi(i-1)/thermal);
     jac(i - 1, i - 1 - 1) = eps_ox ; 
 
     // silicon
@@ -99,7 +101,7 @@ mat jacobian(vec phi)
         jac(i - 1, i + 1 - 1) = eps_si ;
         jac(i - 1, i - 1) =  -2.0 * eps_si ;
         if (include_nonlinear_terms)        
-            jac(i - 1, i - 1) -= deltaX*deltaX*q*n_int*(q/(k_B*T))*exp(q*phi(i-1)/(k_B*T));
+            jac(i - 1, i - 1) -= coeff*n_int*(1.0/thermal)*exp(phi(i-1)/thermal);
         jac(i - 1, i - 1 - 1) = eps_si ; 
     }
 
@@ -108,7 +110,7 @@ mat jacobian(vec phi)
     jac(i - 1, i + 1 - 1) = eps_ox ;
     jac(i - 1, i - 1) =  -eps_ox - eps_si ; 
     if (include_nonlinear_terms)        
-        jac(i - 1, i - 1) -= 0.5*deltaX*deltaX*q*n_int*(q/(k_B*T))*exp(q*phi(i-1)/(k_B*T));
+        jac(i - 1, i - 1) -= 0.5*coeff*n_int*(1.0/thermal)*exp(phi(i-1)/thermal);
     jac(i - 1, i - 1 - 1) = eps_si ; 
 
     // oxide
@@ -230,7 +232,7 @@ int main() {
         vec n = result.second;
         phi_0 = phi;
 
-        if (i==8)
+        if (i==100)
         {
             plot(phi, args);
             args.y_label = "Electron Density (/cm^{3})";
