@@ -60,7 +60,8 @@ vec r(vec phi, double boundary_voltage)
         r_k(interface2_i-1) -= 0.5 * coeff*n_int*exp(phi(interface2_i-1)/thermal);
 
     // oxide
-    r_k(span(interface2_i-1+1, N-1-1)) = (eps_ox) * (-2*phi(span(interface2_i-1+1, N-1-1)) + phi(span(interface2_i-1, N-1-1-1)) + phi(span(interface2_i-1+1+1, N-1-1+1)));
+    r_k(span(interface2_i-1+1, N-1-1)) = (eps_ox) * (-2*phi(span(interface2_i-1+1, N-1-1)) + 
+        phi(span(interface2_i-1, N-1-1-1)) + phi(span(interface2_i-1+1+1, N-1-1+1)));
     
     if (use_normalizer)
         r_k(span(1, N-1-1)) /= eps_0;
@@ -129,7 +130,13 @@ mat jacobian(vec phi)
 
 double integrate_n_over_si(vec n)
 {    
-    double integrated = sum(0.5*n(interface1_i-1)*deltaX + 0.5*n(interface2_i-1)*deltaX + n(span(si_begin_i-1, si_end_i-1)) * deltaX) / 1.0e4; // m^-2 => cm^-2
+    double integrated = 0.5*n(interface1_i-1)*deltaX + 0.5*n(interface2_i-1)*deltaX;
+    integrated += sum(n(span(si_begin_i-1, si_end_i-1)) * deltaX);
+    integrated /= 1.0e4; // m^-2 => cm^-2
+    printf("interface 1 value: %f \n", n(interface1_i-1));
+    printf("interface 2 value: %f", n(interface2_i-1));
+    printf("interface 1 index: %d", interface1_i-1);
+    printf("interface 2 index: %d", interface2_i-1);
     return integrated;
 }
 
@@ -237,11 +244,17 @@ int main() {
             plot(phi, args);
             args.y_label = "Electron Density (/cm^{3})";
             vec n_cm3 = n / 1e6;
-            plot(n_cm3, args);
+            plot(n_cm3, args);            
         }
         //phis(arma::span::all, i) = phi;
-        double integrated_n_over_si = integrate_n_over_si(n);
-        integrated_ns[i] = integrated_n_over_si;
+        double integrated_n_over_si = integrate_n_over_si(n);            
+        integrated_ns[i] = integrated_n_over_si;            
+        
+        if (i==100)
+        {            
+            //vec gate_voltages = arma::linspace(0, boundary_voltages(num_experiments-1) - start_voltage, num_experiments);
+            //plot(gate_voltages, integrated_ns, args2);
+        }
         //phis(arma::span::all, i) = n;
         phis(arma::span::all, i) = phi;
         sprintf(buf, "BC %f", boundary_voltage);
@@ -251,9 +264,11 @@ int main() {
     }  
     args.y_label = "Potential (V)";
     plot(phis, args);      
+    
     vec gate_voltages = arma::linspace(0, boundary_voltages(num_experiments-1) - start_voltage, num_experiments);
     //args2.logscale_y = 10;
-    plot(gate_voltages, integrated_ns, args2);
+    
+    plot(gate_voltages, integrated_ns, args2);    
    
     // Potential
     // plot_args args;
