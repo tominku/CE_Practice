@@ -9,7 +9,7 @@ int main() {
     double n_int = 1e10;
     double dop = 1e18;
     double T = 300; // (K)
-    double phi = asinh(dop / n_int) * k_B * T / q;
+    double phi = asinh(dop / (2*n_int)) * k_B * T / q;
 
     printf("phi: %f \n", phi);
 }

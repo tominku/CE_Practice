@@ -140,7 +140,7 @@ double integrate_n_over_si(vec n)
     return integrated;
 }
 
-std::pair<vec, vec> solve_phi(vec phi_0, double boundary_potential)
+std::pair<vec, vec> solve_phi(vec phi_0, double boundary_potential, bool plot_error)
 {    
     //vec phi_0(N, arma::fill::ones);
     //vec phi_0(N, arma::fill::randn);
@@ -155,6 +155,7 @@ std::pair<vec, vec> solve_phi(vec phi_0, double boundary_potential)
     //mat residuals(num_iters, 3, arma::fill::zeros); // each row i represents the residual at iter i.    
     vec phi_i = phi_0;
     printf("boundary voltage: %f V \n", boundary_potential);
+    vec log_residuals(num_iters, arma::fill::zeros);
     for (int i=0; i<num_iters; i++)
     {
         vec residual = r(phi_i, boundary_potential);
@@ -170,9 +171,21 @@ std::pair<vec, vec> solve_phi(vec phi_0, double boundary_potential)
         
         //phi_i.print("phi_i");
         //jac.print("jac");
-        if (i % 1 == 0)
-            printf("[iter %d]   detal_x: %f   residual: %f\n", i, max(abs(delta_phi_i)), max(abs(residual)));        
+        //if (i % 1 == 0)
+        //printf("[iter %d]   detal_x: %f   residual: %f\n", i, max(abs(delta_phi_i)), max(abs(residual)));  
+        double log_residual = log10(max(abs(residual)));        
+        log_residuals[i] = log_residual;
+        printf("[iter %d]   detal_x: %f   residual: %f\n", i, max(abs(delta_phi_i)), log_residual);  
+        // if (log_residual < - 15)
+        //     break;
     }
+
+    plot_args args;
+    //args.total_width = 6.0;
+    args.N = num_iters;    
+    args.y_label = "log(max residual)";    
+    if (plot_error)
+        plot(log_residuals, args);
 
     //phi_i.print("found solution (phi):");    
     vec n(N, arma::fill::zeros);
@@ -234,7 +247,10 @@ int main() {
     for (int i=0; i<num_experiments; ++i)
     {
         double boundary_voltage = boundary_voltages(i);
-        std::pair<vec, vec> result = solve_phi(phi_0, boundary_voltage);    
+        bool plot_error = false;
+        if (i % 10 == 0)
+            plot_error = true;
+        std::pair<vec, vec> result = solve_phi(phi_0, boundary_voltage, plot_error);    
         vec phi = result.first;
         vec n = result.second;
         phi_0 = phi;
