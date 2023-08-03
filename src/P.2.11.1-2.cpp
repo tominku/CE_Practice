@@ -222,8 +222,8 @@ int main() {
     
     include_nonlinear_terms = true;
     double start_voltage = 0.33374;
-    double experiment_gap = 0.01;
-    int num_experiments = 101;
+    double experiment_gap = 0.2;
+    int num_experiments = 6;
     vec boundary_voltages(num_experiments);
     for (int i=0; i<num_experiments; ++i)
     {
@@ -252,8 +252,12 @@ int main() {
             plot_error = true;
         std::pair<vec, vec> result = solve_phi(phi_0, boundary_voltage, plot_error);    
         vec phi = result.first;
-        vec n = result.second;
+        vec n = result.second;        
         phi_0 = phi;
+        
+        vec n_in_cm3 = n * 1e-6;
+        std::string n_file_name = fmt::format("eDensity_{:.2f}.csv", boundary_voltage - start_voltage);
+        n_in_cm3.save(n_file_name, csv_ascii);
 
         if (i==100)
         {
