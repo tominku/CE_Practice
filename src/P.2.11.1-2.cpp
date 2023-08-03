@@ -14,7 +14,8 @@ const int N = 61;
 double deltaX = 0.1e-9; // in meter  
 double dop = 1e18 * 1e6; // in meter    
 //int n_int = 1e10;
-double n_int = 1e16;
+//double n_int = 1e16;
+double n_int = 1.075*1e16;
 double T = 300;    
 // double total_width = 6.0;    
 // double t_ox = 0.5;
@@ -28,6 +29,7 @@ bool include_nonlinear_terms = true;
 bool use_normalizer = false;
 double thermal = k_B * T / q;
 double coeff = deltaX*deltaX*q;
+double start_potential = 0.33374;
 
 // residual(phi): the size of r(phi) is N.
 vec r(vec phi, double boundary_voltage)
@@ -156,6 +158,7 @@ std::pair<vec, vec> solve_phi(vec phi_0, double boundary_potential, bool plot_er
     vec phi_i = phi_0;
     printf("boundary voltage: %f V \n", boundary_potential);
     vec log_residuals(num_iters, arma::fill::zeros);
+    vec log_deltas(num_iters, arma::fill::zeros);
     for (int i=0; i<num_iters; i++)
     {
         vec residual = r(phi_i, boundary_potential);
@@ -174,18 +177,23 @@ std::pair<vec, vec> solve_phi(vec phi_0, double boundary_potential, bool plot_er
         //if (i % 1 == 0)
         //printf("[iter %d]   detal_x: %f   residual: %f\n", i, max(abs(delta_phi_i)), max(abs(residual)));  
         double log_residual = log10(max(abs(residual)));        
+        double log_delta = log10(max(abs(delta_phi_i)));        
         log_residuals[i] = log_residual;
-        printf("[iter %d]   detal_x: %f   residual: %f\n", i, max(abs(delta_phi_i)), log_residual);  
-        // if (log_residual < - 15)
-        //     break;
+        log_deltas[i] = log_delta;
+        printf("[iter %d]   log detal_x: %f   log residual: %f\n", i, log_delta, log_residual);  
+        
+        if (log_delta < - 10)
+            break;
     }
 
     plot_args args;
     //args.total_width = 6.0;
     args.N = num_iters;    
-    args.y_label = "log(max residual)";    
+    //args.y_label = "log(max residual)";        
+    args.y_label = fmt::format("log(delta) V_g: {:.2f} V", boundary_potential - start_potential);
     if (plot_error)
-        plot(log_residuals, args);
+        plot(log_deltas, args);
+        //plot(log_residuals, args);
 
     //phi_i.print("found solution (phi):");    
     vec n(N, arma::fill::zeros);
@@ -220,14 +228,13 @@ std::pair<vec, vec> solve_phi(vec phi_0, double boundary_potential, bool plot_er
 int main() {    
     //printf("nl term: %f", (q/(k_B*T)));
     
-    include_nonlinear_terms = true;
-    double start_voltage = 0.33374;
+    include_nonlinear_terms = true;    
     double experiment_gap = 0.2;
     int num_experiments = 6;
     vec boundary_voltages(num_experiments);
     for (int i=0; i<num_experiments; ++i)
     {
-        boundary_voltages(i) = start_voltage + experiment_gap * i;
+        boundary_voltages(i) = start_potential + experiment_gap * i;
     }
 
     plot_args args;
@@ -247,16 +254,16 @@ int main() {
     for (int i=0; i<num_experiments; ++i)
     {
         double boundary_voltage = boundary_voltages(i);
-        bool plot_error = false;
-        if (i % 10 == 0)
-            plot_error = true;
+        bool plot_error = true;
+        // if (i % 10 == 0)
+        //     plot_error = true;
         std::pair<vec, vec> result = solve_phi(phi_0, boundary_voltage, plot_error);    
         vec phi = result.first;
         vec n = result.second;        
         phi_0 = phi;
         
         vec n_in_cm3 = n * 1e-6;
-        std::string n_file_name = fmt::format("eDensity_{:.2f}.csv", boundary_voltage - start_voltage);
+        std::string n_file_name = fmt::format("eDensity_{:.2f}.csv", boundary_voltage - start_potential);
         n_in_cm3.save(n_file_name, csv_ascii);
 
         if (i==100)
@@ -279,13 +286,13 @@ int main() {
         phis(arma::span::all, i) = phi;
         sprintf(buf, "BC %f", boundary_voltage);
         //args.labels.push_back(std::string::);
-        std::string label_text = fmt::format("V_g: {:.1f} V", boundary_voltage - start_voltage);        
+        std::string label_text = fmt::format("V_g: {:.1f} V", boundary_voltage - start_potential);        
         args.labels.push_back(label_text);        
     }  
     args.y_label = "Potential (V)";
     plot(phis, args);      
     
-    vec gate_voltages = arma::linspace(0, boundary_voltages(num_experiments-1) - start_voltage, num_experiments);
+    vec gate_voltages = arma::linspace(0, boundary_voltages(num_experiments-1) - start_potential, num_experiments);
     //args2.logscale_y = 10;
     
     plot(gate_voltages, integrated_ns, args2);    
