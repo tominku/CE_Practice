@@ -26,7 +26,6 @@ double dop_center = 1e18 * 1e6; // in m^3
 double dop_right = dop_left;
 int interface1_i = round(left_part_width/deltaX) + 1;
 int interface2_i = round((left_part_width + center_part_width)/deltaX) + 1;
-double start_potential = 0.33374;
 
 void r_and_jacobian(vec &r, mat &jac, vec &phi, double boundary_potential)
 {
@@ -94,25 +93,18 @@ void r_and_jacobian(vec &r, mat &jac, vec &phi, double boundary_potential)
     }      
 }
 
-void solve_phi(double boundary_potential)
-{        
-    //phi_0 *= boundary_potential;
-    double bc_left = boundary_potential;
-    double bc_right = boundary_potential;
-    // phi_0(0) = bc_left;
-    // phi_0(N - 1) = bc_right;
-    int num_iters = 20;
-    //mat xs(num_iters, 3, arma::fill::zeros); // each row i represents the solution at iter i.
-    //mat residuals(num_iters, 3, arma::fill::zeros); // each row i represents the residual at iter i.        
+vec solve_phi(double boundary_potential, vec &phi_0)
+{                
+    int num_iters = 20;    
     printf("boundary voltage: %f V \n", boundary_potential);
     vec log_residuals(num_iters, arma::fill::zeros);
     vec log_deltas(num_iters, arma::fill::zeros);
-    
-    vec phi_0(N+1, arma::fill::zeros);
+        
     vec r(N + 1, arma::fill::zeros);
     mat jac(N + 1, N + 1, arma::fill::zeros);    
     
-    vec phi_k(N + 1, arma::fill::zeros);      
+    vec phi_k(N + 1, arma::fill::zeros);     
+    phi_k = phi_0;
 
     for (int k=0; k<num_iters; k++)
     {        
@@ -139,18 +131,10 @@ void solve_phi(double boundary_potential)
         // if (log_delta < - 10)
         //     break;
     }
-
-    plot_args args;
-    //args.total_width = 6.0;
-    args.N = num_iters;    
-    //args.y_label = "log(max residual)";        
-    args.y_label = fmt::format("log(delta) V_g: {:.2f} V", boundary_potential - start_potential);
         
-    args.total_width = 6.0;
-    args.N = N;    
-    args.y_label = "Potential (V)";
-    vec potentials = phi_k(span(1, N));
-    plot(potentials, args);
+    return phi_k;
+    //plot(potentials, args);
+    
     // if (plot_error)
     //     plot(log_deltas, args);
         //plot(log_residuals, args);
@@ -164,5 +148,34 @@ void solve_phi(double boundary_potential)
 
 
 int main() {    
-    solve_phi(0.0);
+
+    double boundary_potential = 0.33374;
+
+    vec phi_0(N+1, arma::fill::zeros);
+    for (int i=0; i<10; i++)
+    {
+        vec phi = solve_phi(boundary_potential, phi_0); 
+        phi_0 = phi;   
+
+        boundary_potential += i*0.1;
+        // plot_args args;
+        // //args.total_width = 6.0;
+        // args.N = N;
+        // //args.y_label = "log(max residual)";        
+        // args.y_label = fmt::format("log(delta) V_g: {:.2f} V", boundary_potential - start_potential);
+        // vec potentials = phi_k(span(1, N));            
+        // args.total_width = 6.0;
+        // args.N = N;    
+        // args.y_label = "Potential (V)";
+
+        plot_args args;
+        args.total_width = 6.0;
+        args.N = N;    
+        vec n(N+1, arma::fill::zeros);
+        n(span(interface1_i, interface2_i)) = n_int * exp(phi(span(interface1_i, interface2_i)) / thermal);
+        n /= 1e6;
+        args.y_label = "eDensity (cm^3)";
+        vec eDensity = n(span(1, N));
+        plot(eDensity, args);
+    }
 }
