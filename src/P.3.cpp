@@ -31,112 +31,85 @@ double thermal = k_B * T / q;
 double coeff = deltaX*deltaX*q;
 double start_potential = 0.33374;
 
+int dop_left = 0;
+int dop_center = 0;
+int dop_right = 0;
+
 // residual(phi): the size of r(phi) is N.
 vec r_and_jacobian(vec phi_n, double boundary_voltage)
 {   
-    vec r(2*N, arma::fill::zeros);
-    mat jac(2*N, 2*N, arma::fill::zeros);    
-    // boundary
-    //r_k(0) = phi_n(0);
-    //r_k(N-1) = phi_n(N-1);
+    vec r(2*N + 1, arma::fill::zeros);
+    mat jac(2*N + 1, 2*N + 1, arma::fill::zeros);    
+    int offset = N;
+
+    r(1) = phi_n(1) - 0.0;
+    r(N) = phi_n(N) - 0.0;
+    r(offset+1) = phi_n(offset + 1) - 0.0;
+    r(offset+N) = phi_n(offset + N) - 0.0;
+
+    jac(1, 1) = 1.0; 
+    jac(N, N) = 1.0; 
+    jac(offset+1, offset+1) = 1.0; 
+    jac(offset+N, offset+N) = 1.0;     
 
     /*
     r = [r_poisson; r_continuity]
     Jacobian = r w.r.t. phi_n
-    */ 
+    */     
 
-    for (int i=1; i<=N; i++)
+    for (int i=(1+1); i<N; i++)
     {        
         double eps_i_p_0_5 = eps_si;
-        double eps_i_m_0_5 = eps_si;        
-        r[i] = eps_i_p_0_5*phi_n(i+1) -(eps_i_p_0_5 + eps_i_m_0_5)*phi_n(i) + eps_i_m_0_5*phi_n(i-1)                                
-        //jac[i]
+        double eps_i_m_0_5 = eps_si;                        
+        // residual for poisson
+        r(i) = eps_i_p_0_5*phi_n(i+1) -(eps_i_p_0_5 + eps_i_m_0_5)*phi_n(i) + eps_i_m_0_5*phi_n(i-1);
+        
+        double coeff = deltaX*deltaX*q;
+        double n_i = phi_n(offset+i);
+        if (i < interface1_i)
+            r(i) += - coeff*(dop_left + n_i); 
+        else if (i == interface1_i)
+            r(i) += - coeff*(0.5*dop_left + 0.5*dop_center + n_i); 
+        else if (i > interface1_i & i < interface2_i)
+            r(i) += - coeff*(dop_center + n_i); 
+        else if (i == interface2_i)
+            r(i) += - coeff*(0.5*dop_center + 0.5*dop_right + n_i); 
+        else if (i > interface2_i)
+            r(i) += - coeff*(dop_right + n_i);             
+
+        // poisson w.r.t phis
+        jac(i, i+1) = eps_i_p_0_5;
+        jac(i, i) = -(eps_i_p_0_5 + eps_i_m_0_5);
+        jac(i, i-1) = eps_i_m_0_5;
+        
+        // poisson w.r.t ns
+        jac(i, i+offset) = - coeff;
     }
 
-    for (int i=N+1; i<=2*N; i++)
+    for (int i=(N+1+1); i<2*N; i++)
     {                        
         double n_avg1 = (phi_n(i) + phi_n(i+1)) / 2.0 ;
-        double n_avg2 = (phi_n(i) + phi_n(i-1)) / 2.0 ;
-        int offset = N;
+        double n_avg2 = (phi_n(i) + phi_n(i-1)) / 2.0 ;    
         double phi_diff1 = phi_n(i+1-offset) - phi_n(i-offset);
         double phi_diff2 = phi_n(i-offset) - phi_n(i-1-offset);
         double n_diff1 = phi_n(i+1) - phi_n(i);
         double n_diff2 = phi_n(i) - phi_n(i-1);
         
-        r[i] = -n_avg1*phi_diff1 + thermal*n_diff1 + n_avg2*phi_diff2 - thermal*n_diff2;        
+        // residual for continuity
+        r(i) = -n_avg1*phi_diff1 + thermal*n_diff1 + n_avg2*phi_diff2 - thermal*n_diff2;        
         
-        jac[i, i+1-offset] = -n_avg1;
-        jac[i, i-offset] = n_avg1 + n_avg2;
-        jac[i, i-1-offset] = -n_avg2;
+        // continuity w.r.t. phis
+        jac(i, i+1-offset) = -n_avg1;
+        jac(i, i-offset) = n_avg1 + n_avg2;
+        jac(i, i-1-offset) = -n_avg2;
 
-        jac[i, i+1] = -0.5*phi_diff1 + thermal;
-        jac[i, i] = -0.5*phi_diff1 + 0.5*phi_diff2 - 2*thermal;
-        jac[i, i-1]= 0.5*phi_diff2 + thermal;
-        
-    }
-    // oxide
-    //r_k(span(1, interface1_i-1-1)) = (eps_ox) * (-2*phi(span(1, interface1_i-1-1)) + phi(span(0, interface1_i-1-1-1)) + phi(span(2, interface1_i-1)));
-    
-        
+        // continuity w.r.t. ns
+        jac(i, i+1) = -0.5*phi_diff1 + thermal;
+        jac(i, i) = -0.5*phi_diff1 + 0.5*phi_diff2 - 2*thermal;
+        jac(i, i-1) = 0.5*phi_diff2 + thermal;        
+    }                
 
     return r;
-}
-
-// the jacobian matrix size is N by N
-mat jacobian(vec phi)
-{
-    mat jac(N, N, arma::fill::zeros);    
-    
-    // boundary
-    jac(0, 0) = 1.0;
-    jac(N-1, N-1) = 1.0;
-
-    //ox
-    for (int i=2; i<=(interface1_i - 1); ++i)    
-    {
-        jac(i - 1, i + 1 - 1) = eps_ox ;
-        jac(i - 1, i - 1) =  -2.0 * eps_ox ;        
-        jac(i - 1, i - 1 - 1) = eps_ox ; 
-    }    
-
-    // interface 1
-    int i = interface1_i;
-    jac(i - 1, i + 1 - 1) = eps_si ;
-    jac(i - 1, i - 1) =  -eps_ox - eps_si ;        
-    if (include_nonlinear_terms)        
-        jac(i - 1, i - 1) -= 0.5*coeff*n_int*(1.0/thermal)*exp(phi(i-1)/thermal);
-    jac(i - 1, i - 1 - 1) = eps_ox ; 
-
-    // silicon
-    for (int i=si_begin_i; i<=si_end_i; ++i)
-    {
-        jac(i - 1, i + 1 - 1) = eps_si ;
-        jac(i - 1, i - 1) =  -2.0 * eps_si ;
-        if (include_nonlinear_terms)        
-            jac(i - 1, i - 1) -= coeff*n_int*(1.0/thermal)*exp(phi(i-1)/thermal);
-        jac(i - 1, i - 1 - 1) = eps_si ; 
-    }
-
-    // interface 2
-    i = interface2_i;
-    jac(i - 1, i + 1 - 1) = eps_ox ;
-    jac(i - 1, i - 1) =  -eps_ox - eps_si ; 
-    if (include_nonlinear_terms)        
-        jac(i - 1, i - 1) -= 0.5*coeff*n_int*(1.0/thermal)*exp(phi(i-1)/thermal);
-    jac(i - 1, i - 1 - 1) = eps_si ; 
-
-    // oxide
-    for (int i=(interface2_i + 1); i<=(N-1); ++i)    
-    {
-        jac(i - 1, i + 1 - 1) = eps_ox ;
-        jac(i - 1, i - 1) =  -2.0 * eps_ox ;        
-        jac(i - 1, i - 1 - 1) = eps_ox ; 
-    }
-
-    if (use_normalizer)
-        jac(span(1, N-1-1), span(1, N-1-1)) /= eps_0;
-
-    return jac;
 }
 
 
