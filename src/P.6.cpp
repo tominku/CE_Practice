@@ -10,24 +10,26 @@
 // #include <fmt/format.h>
 using namespace arma; 
 
-const int N = 61;
-double deltaX = 0.1e-9; // in meter  
+const int N = 601;
 //int n_int = 1e10;
 //double n_int = 1e16;
 double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
 double T = 300;    
 // double total_width = 6.0;    
 // double t_ox = 0.5;
-double t_si = 5;
-int interface1_i = 6;
-int interface2_i = 56;
 bool use_normalizer = false;
 double thermal = k_B * T / q;
+
+double left_part_width = 1e-7;
+double center_part_width = 4e-7;
+double deltaX = (left_part_width*2 + center_part_width) / (N-1); // in meter  
 double coeff = deltaX*deltaX*q;
 
-int dop_left = 0;
-int dop_center = 0;
-int dop_right = 0;
+int dop_left = 5e23; // in m^3
+int dop_center = 2e21; // in m^3
+int dop_right = dop_left;
+int interface1_i = arma::round(left_part_width/deltaX) + 1;
+int interface2_i = arma::round((left_part_width + center_part_width)/deltaX) + 1;
 
 // residual(phi): the size of r(phi) is N.
 std::pair<vec, mat> r_and_jacobian(vec phi_n)
@@ -119,15 +121,15 @@ std::pair<vec, vec> solve_for_phi_n()
         vec r = result.first;
         mat jac = result.second;        
         
-        vec delta_phi = arma::solve(jac, -r);        
-        phi_n_k += delta_phi;                
+        vec delta_phi = arma::solve(jac(span(1, 2*N), span(1, 2*N)), -r(span(1, 2*N)));        
+        phi_n_k(span(1, 2*N)) += delta_phi;                
         
         //phi_i.print("phi_i");
         //jac.print("jac");
         //if (i % 1 == 0)
         //printf("[iter %d]   detal_x: %f   residual: %f\n", i, max(abs(delta_phi_i)), max(abs(residual)));  
-        double log_residual = log10(max(abs(r)));        
-        double log_delta = log10(max(abs(delta_phi)));        
+        double log_residual = log10(max(abs(r(span(1, 2*N)))));        
+        double log_delta = log10(max(abs(delta_phi(span(1, 2*N)))));        
         log_residuals[k] = log_residual;
         log_deltas[k] = log_delta;
         printf("[iter %d]   log detal_x: %f   log residual: %f\n", k, log_delta, log_residual);  
