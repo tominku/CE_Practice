@@ -12,6 +12,7 @@ using namespace arma;
 
 const int N = 61;
 double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
+//double n_int = 1.0*1e16;
 double T = 300;    
 double thermal = k_B * T / q;
 
@@ -181,6 +182,6 @@ int main() {
         std::string n_file_name = fmt::format("eDensity_{:.2f}.csv", (0.1*i));
         eDensity.save(n_file_name, csv_ascii);
 
-        //..plot(eDensity, args);
+        plot(eDensity, args);
     }
 }
