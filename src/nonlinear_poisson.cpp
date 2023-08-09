@@ -96,7 +96,7 @@ void r_and_jacobian(vec &r, mat &jac, vec &phi, double boundary_potential)
 vec solve_phi(double boundary_potential, vec &phi_0)
 {                
     int num_iters = 20;    
-    printf("boundary voltage: %f V \n", boundary_potential);
+    printf("boundary voltage: %f \n", boundary_potential);
     vec log_residuals(num_iters, arma::fill::zeros);
     vec log_deltas(num_iters, arma::fill::zeros);
         
@@ -128,8 +128,8 @@ vec solve_phi(double boundary_potential, vec &phi_0)
         log_deltas[k] = log_delta;
         printf("[iter %d]   log detal_x: %f   log residual: %f\n", k, log_delta, log_residual);  
         
-        // if (log_delta < - 10)
-        //     break;
+        if (log_delta < - 10)
+            break;
     }
         
     return phi_k;
@@ -149,15 +149,16 @@ vec solve_phi(double boundary_potential, vec &phi_0)
 
 int main() {    
 
-    double boundary_potential = 0.33374;
+    double start_potential = 0.33374;    
 
     vec phi_0(N+1, arma::fill::zeros);
     for (int i=0; i<10; i++)
-    {
-        vec phi = solve_phi(boundary_potential, phi_0); 
+    {        
+        vec phi = solve_phi(start_potential + (0.1*i), phi_0); 
         phi_0 = phi;   
-
-        boundary_potential += i*0.1;
+        
+        std::string log = fmt::format("BD {:.2f} V \n", start_potential + (0.1*i));            
+        cout << log;
         // plot_args args;
         // //args.total_width = 6.0;
         // args.N = N;
@@ -176,6 +177,10 @@ int main() {
         n /= 1e6;
         args.y_label = "eDensity (cm^3)";
         vec eDensity = n(span(1, N));
-        plot(eDensity, args);
+
+        std::string n_file_name = fmt::format("eDensity_{:.2f}.csv", (0.1*i));
+        eDensity.save(n_file_name, csv_ascii);
+
+        //..plot(eDensity, args);
     }
 }
