@@ -12,7 +12,6 @@ using namespace arma;
 
 const int N = 61;
 double deltaX = 0.1e-9; // in meter  
-double dop = 1e18 * 1e6; // in meter    
 //int n_int = 1e10;
 //double n_int = 1e16;
 double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
@@ -22,14 +21,9 @@ double T = 300;
 double t_si = 5;
 int interface1_i = 6;
 int interface2_i = 56;
-int si_begin_i = interface1_i + 1;
-int si_end_i = interface2_i - 1;
-//bool include_nonlinear_terms = true;
-bool include_nonlinear_terms = true;
 bool use_normalizer = false;
 double thermal = k_B * T / q;
 double coeff = deltaX*deltaX*q;
-double start_potential = 0.33374;
 
 int dop_left = 0;
 int dop_center = 0;
@@ -63,8 +57,7 @@ std::pair<vec, mat> r_and_jacobian(vec phi_n)
         double eps_i_m_0_5 = eps_si;                        
         // residual for poisson
         r(i) = eps_i_p_0_5*phi_n(i+1) -(eps_i_p_0_5 + eps_i_m_0_5)*phi_n(i) + eps_i_m_0_5*phi_n(i-1);
-        
-        double coeff = deltaX*deltaX*q;
+                
         double n_i = phi_n(offset+i);
         if (i < interface1_i)
             r(i) += - coeff*(dop_left + n_i); 
