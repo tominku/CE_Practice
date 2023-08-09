@@ -11,7 +11,7 @@
 // #include <fmt/format.h>
 using namespace arma; 
 
-const int N = 61;
+const int N = 601;
 //int n_int = 1e10;
 //double n_int = 1e16;
 double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
@@ -119,10 +119,10 @@ std::pair<vec, vec> solve_for_phi_n()
     for (int k=0; k<num_iters; k++)
     {        
         r_and_jacobian(r, jac, phi_n_k);                       
-        r.print("r:");        
-        r.save("r.txt", arma::raw_ascii);
+        //r.print("r:");        
+        //r.save("r.txt", arma::raw_ascii);
         //jac.print("jac:");
-        jac.save("jac.txt", arma::raw_ascii);
+        //jac.save("jac.txt", arma::raw_ascii);
         
         vec delta_phi = arma::solve(jac(span(1, 2*N), span(1, 2*N)), -r(span(1, 2*N)));        
         phi_n_k(span(1, 2*N)) += delta_phi;                
@@ -137,8 +137,8 @@ std::pair<vec, vec> solve_for_phi_n()
         log_deltas[k] = log_delta;
         printf("[iter %d]   log delta_x: %f   log residual: %f\n", k, log_delta, log_residual);  
         
-        if (log_delta < - 10)
-            break;
+        // if (log_delta < - 10)
+        //     break;
     }
 }
 
