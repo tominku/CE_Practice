@@ -36,7 +36,7 @@ int dop_center = 0;
 int dop_right = 0;
 
 // residual(phi): the size of r(phi) is N.
-vec r_and_jacobian(vec phi_n, double boundary_voltage)
+std::pair<vec, mat> r_and_jacobian(vec phi_n)
 {   
     vec r(2*N + 1, arma::fill::zeros);
     mat jac(2*N + 1, 2*N + 1, arma::fill::zeros);    
@@ -109,49 +109,35 @@ vec r_and_jacobian(vec phi_n, double boundary_voltage)
         jac(i, i-1) = 0.5*phi_diff2 + thermal;        
     }                
 
-    return r;
+    std::pair<vec, mat> result(r, jac);
+    return result;
 }
 
 
-std::pair<vec, vec> solve_phi(vec phi_0, double boundary_potential, bool plot_error)
-{    
-    //vec phi_0(N, arma::fill::ones);
-    //vec phi_0(N, arma::fill::randn);
-    //double boundary_voltage = 0.33374;
-    //phi_0 *= boundary_potential;
-    double bc_left = boundary_potential;
-    double bc_right = boundary_potential;
-    // phi_0(0) = bc_left;
-    // phi_0(N - 1) = bc_right;
-    int num_iters = 20;
-    //mat xs(num_iters, 3, arma::fill::zeros); // each row i represents the solution at iter i.
-    //mat residuals(num_iters, 3, arma::fill::zeros); // each row i represents the residual at iter i.    
-    vec phi_i = phi_0;
-    printf("boundary voltage: %f V \n", boundary_potential);
+std::pair<vec, vec> solve_for_phi_n()
+{        
+    int num_iters = 20;   
+    vec phi_n_k(2*N, arma::fill::zeros);    
     vec log_residuals(num_iters, arma::fill::zeros);
     vec log_deltas(num_iters, arma::fill::zeros);
-    for (int i=0; i<num_iters; i++)
-    {
-        vec residual = r(phi_i, boundary_potential);
-        mat jac = jacobian(phi_i);
-        //jac.print("jac:");
-        //printf("test");
-        // xs.row(i) = x_i.t();         
-        // residuals.row(i) = residual.t();     
-        //residual.print("residual: ");   
-        vec delta_phi_i = arma::solve(jac, -residual);
-        //phi_i(span(1, N - 1 - 1)) += delta_phi_i;                
-        phi_i += delta_phi_i;                
+    for (int k=0; k<num_iters; k++)
+    {        
+        std::pair<vec, vec> result = r_and_jacobian(phi_n_k);        
+        vec r = result.first;
+        mat jac = result.second;        
+        
+        vec delta_phi = arma::solve(jac, -r);        
+        phi_n_k += delta_phi;                
         
         //phi_i.print("phi_i");
         //jac.print("jac");
         //if (i % 1 == 0)
         //printf("[iter %d]   detal_x: %f   residual: %f\n", i, max(abs(delta_phi_i)), max(abs(residual)));  
-        double log_residual = log10(max(abs(residual)));        
-        double log_delta = log10(max(abs(delta_phi_i)));        
-        log_residuals[i] = log_residual;
-        log_deltas[i] = log_delta;
-        printf("[iter %d]   log detal_x: %f   log residual: %f\n", i, log_delta, log_residual);  
+        double log_residual = log10(max(abs(r)));        
+        double log_delta = log10(max(abs(delta_phi)));        
+        log_residuals[k] = log_residual;
+        log_deltas[k] = log_delta;
+        printf("[iter %d]   log detal_x: %f   log residual: %f\n", k, log_delta, log_residual);  
         
         if (log_delta < - 10)
             break;
@@ -159,5 +145,5 @@ std::pair<vec, vec> solve_phi(vec phi_0, double boundary_potential, bool plot_er
 }
 
 int main() {    
-
+    solve_for_phi_n();
 }
