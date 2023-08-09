@@ -25,15 +25,13 @@ double thermal = k_B * T / q;
 double left_part_width = 1e-7;
 double center_part_width = 4e-7;
 double deltaX = (left_part_width*2 + center_part_width) / (N-1); // in meter  
-double coeff = deltaX*deltaX*q / eps_0;
+double coeff = deltaX*deltaX*q;
 
 double dop_left = 5e23; // in m^3
 double dop_center = 2e21; // in m^3
 double dop_right = dop_left;
 int interface1_i = round(left_part_width/deltaX) + 1;
 int interface2_i = round((left_part_width + center_part_width)/deltaX) + 1;
-
-double ratio_eps_si = 11.7;
 
 // residual(phi): the size of r(phi) is N.
 void r_and_jacobian(vec &r, mat &jac, vec &phi_n)
@@ -57,8 +55,8 @@ void r_and_jacobian(vec &r, mat &jac, vec &phi_n)
     Jacobian = r w.r.t. phi_n
     */     
 
-    double eps_i_p_0_5 = ratio_eps_si;
-    double eps_i_m_0_5 = ratio_eps_si;                        
+    double eps_i_p_0_5 = eps_si;
+    double eps_i_m_0_5 = eps_si;                        
 
     for (int i=(1+1); i<N; i++)
     {                
@@ -75,7 +73,7 @@ void r_and_jacobian(vec &r, mat &jac, vec &phi_n)
         else if (i == interface2_i)
             r(i) += - coeff*(0.5*(-dop_center) + 0.5*(-dop_right) + n_i); 
         else if (i > interface2_i)
-            r(i) += - coeff*((-dop_right) + n_i);           
+            r(i) += - coeff*((-dop_right) + n_i);             
 
         // poisson w.r.t phis
         jac(i, i+1) = eps_i_p_0_5;
@@ -130,7 +128,7 @@ void solve_for_phi_n()
     vec r(2*N + 1, arma::fill::zeros);
     mat jac(2*N + 1, 2*N + 1, arma::fill::zeros);    
 
-    int num_iters = 40;   
+    int num_iters = 20;   
     vec phi_n_k(2*N + 1, arma::fill::zeros);    
     vec log_residuals(num_iters, arma::fill::zeros);
     vec log_deltas(num_iters, arma::fill::zeros);
@@ -150,6 +148,7 @@ void solve_for_phi_n()
         // c_vector(span(0+1, N-1-1)) = thermal * one_vector(span(0, N-1-2));
         // c_vector(span(N+1, 2*N-1-1)) = dop_left * one_vector(span(N, 2*N-1-2));        
         mat C = diagmat(c_vector);  
+        //mat C = eye(2*N, 2*N);
         mat jac_scaled = jac(span(1, 2*N), span(1, 2*N)) * C;
         
         colvec r_vector_temp = arma::sum(abs(jac_scaled), 1);
@@ -157,7 +156,7 @@ void solve_for_phi_n()
         for (int p=0; p<2*N; p++)        
             r_vector(p) = 1 / (r_vector_temp(p) + 1e-10);                
         mat R = diagmat(r_vector);              
-        mat R_eye = eye(2*N, 2*N);
+        //mat R_eye = eye(2*N, 2*N);
         //R = R_eye;
         jac_scaled = R * jac_scaled;
         vec r_scaled = R * r(span(1, 2*N));
@@ -168,7 +167,7 @@ void solve_for_phi_n()
         //jac_scaled.print("jac_scaled: ");
         //jac.print("jac:");
         //jac_scaled.save("jac_scaled.txt", arma::raw_ascii);        
-        save_mat("jac_scaled.txt", jac_scaled);
+        //save_mat("jac_scaled.txt", jac_scaled);
         vec delta_phi = arma::solve(jac_scaled, -r_scaled);        
         //vec delta_phi = arma::solve(jac(span(1, 2*N), span(1, 2*N)), -r(span(1, 2*N)));        
         phi_n_k(span(1, 2*N)) += C * delta_phi;                
@@ -177,14 +176,31 @@ void solve_for_phi_n()
         //jac.print("jac");
         //if (i % 1 == 0)
         //printf("[iter %d]   detal_x: %f   residual: %f\n", i, max(abs(delta_phi_i)), max(abs(residual)));  
-        //double log_residual = log10(max(abs(r(span(1, 2*N)))));        
+        double log_residual = log10(max(abs(r_scaled)));        
         double log_delta = log10(max(abs(delta_phi)));                
         log_deltas[k] = log_delta;
-        printf("[iter %d]   log delta_x: %f \n", k, log_delta);  
-        
-        // if (log_delta < - 10)
-        //     break;
+        printf("[iter %d]   log_delta_x: %f   log_residual: %f \n", k, log_delta, log_residual);  
+
+        if (log_delta < - 10)
+            break;
     }
+
+    plot_args args;
+    args.total_width = 600;
+    args.N = N;        
+    vec eDensities = phi_n_k(span(N+1, 2*N));
+    vec potential = phi_n_k(span(1, N));
+        
+    args.y_label = "Potential (V)";    
+    plot(potential, args);
+
+    args.y_label = "eDensity (/cm^3)";  
+    args.logscale_y = 10;
+    eDensities = eDensities / 1e6;
+    plot(eDensities, args);
+
+    //args.y_label = "log (delta)"; 
+    //plot(log_deltas, args);
 }
 
 int main() {    
