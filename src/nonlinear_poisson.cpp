@@ -68,30 +68,33 @@ void r_and_jacobian(vec &r, mat &jac, vec &phi, double boundary_potential)
     double dop_term = 0.0;
 
     for (int i=(1+1); i<N; i++)
-    {                                
+    {                                        
         if (i < interface1_i)
         {                        
             eps_i_m_0_5 = eps_ox;
             eps_i_p_0_5 = eps_ox;
-            dop_term = dop_left;            
+            dop_term = dop_left;                        
         }
         else if (i == interface1_i)
         {            
             eps_i_m_0_5 = eps_ox;
             eps_i_p_0_5 = eps_si;
             dop_term = 0.5*(dop_left) + 0.5*(dop_center);                      
+            r(i) += 0.5*coeff*( n_int*exp(phi(i)/thermal) - n_int*exp(-phi(i)/thermal) );
         }
         else if (i > interface1_i & i < interface2_i)
         {
             eps_i_m_0_5 = eps_si;
             eps_i_p_0_5 = eps_si;
             dop_term = dop_center;               
+            r(i) += coeff*( n_int*exp(phi(i)/thermal) - n_int*exp(-phi(i)/thermal) );
         }
         else if (i == interface2_i)
         {
             eps_i_m_0_5 = eps_si;
             eps_i_p_0_5 = eps_ox;
             dop_term = 0.5*(dop_center) + 0.5*(dop_right);            
+            r(i) += 0.5*coeff*( n_int*exp(phi(i)/thermal) - n_int*exp(-phi(i)/thermal) );
         }
         else if (i > interface2_i)
         {
@@ -100,10 +103,10 @@ void r_and_jacobian(vec &r, mat &jac, vec &phi, double boundary_potential)
             dop_term = dop_right;             
         }
 
-        // residual for poisson
-        r(i) = eps_i_p_0_5*phi(i+1) -(eps_i_p_0_5 + eps_i_m_0_5)*phi(i) + eps_i_m_0_5*phi(i-1) +
-            coeff*( dop_term + n_int*exp(phi(i)/thermal) - n_int*exp(-phi(i)/thermal) );            
-
+        // residual for poisson        
+        r(i) += eps_i_p_0_5*phi(i+1) -(eps_i_p_0_5 + eps_i_m_0_5)*phi(i) + eps_i_m_0_5*phi(i-1);
+        r(i) += coeff*dop_term;            
+        //n_int*exp(phi(i)/thermal) - n_int*exp(-phi(i)/thermal)
         // poisson w.r.t phis
         jac(i, i+1) = eps_i_p_0_5;
         jac(i, i) = -(eps_i_p_0_5 + eps_i_m_0_5) - coeff*n_int*(1.0/thermal)*exp(phi(i)/thermal);
