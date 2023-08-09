@@ -5,12 +5,13 @@
 
 #define FMT_HEADER_ONLY
 #include <fmt/format.h>
+#include<cmath>
 
 // #include <fmt/core.h>
 // #include <fmt/format.h>
 using namespace arma; 
 
-const int N = 601;
+const int N = 61;
 //int n_int = 1e10;
 //double n_int = 1e16;
 double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
@@ -25,23 +26,23 @@ double center_part_width = 4e-7;
 double deltaX = (left_part_width*2 + center_part_width) / (N-1); // in meter  
 double coeff = deltaX*deltaX*q;
 
-int dop_left = 5e23; // in m^3
-int dop_center = 2e21; // in m^3
-int dop_right = dop_left;
-int interface1_i = arma::round(left_part_width/deltaX) + 1;
-int interface2_i = arma::round((left_part_width + center_part_width)/deltaX) + 1;
+double dop_left = 5e23; // in m^3
+double dop_center = 2e21; // in m^3
+double dop_right = dop_left;
+int interface1_i = round(left_part_width/deltaX) + 1;
+int interface2_i = round((left_part_width + center_part_width)/deltaX) + 1;
 
 // residual(phi): the size of r(phi) is N.
-std::pair<vec, mat> r_and_jacobian(vec phi_n)
-{   
-    vec r(2*N + 1, arma::fill::zeros);
-    mat jac(2*N + 1, 2*N + 1, arma::fill::zeros);    
+void r_and_jacobian(vec &r, mat &jac, vec &phi_n)
+{
+    r.fill(0.0);        
+    jac.fill(0.0);
     int offset = N;
 
-    r(1) = phi_n(1) - 0.0;
-    r(N) = phi_n(N) - 0.0;
-    r(offset+1) = phi_n(offset + 1) - 0.0;
-    r(offset+N) = phi_n(offset + N) - 0.0;
+    r(1) = phi_n(1) - thermal * log(dop_left/n_int);
+    r(N) = phi_n(N) - thermal * log(dop_right/n_int);
+    r(offset+1) = phi_n(offset + 1) - dop_left;
+    r(offset+N) = phi_n(offset + N) - dop_right;
 
     jac(1, 1) = 1.0; 
     jac(N, N) = 1.0; 
@@ -58,8 +59,8 @@ std::pair<vec, mat> r_and_jacobian(vec phi_n)
         double eps_i_p_0_5 = eps_si;
         double eps_i_m_0_5 = eps_si;                        
         // residual for poisson
-        r(i) = eps_i_p_0_5*phi_n(i+1) -(eps_i_p_0_5 + eps_i_m_0_5)*phi_n(i) + eps_i_m_0_5*phi_n(i-1);
-                
+        r(i) = eps_i_p_0_5*phi_n(i+1) -(eps_i_p_0_5 + eps_i_m_0_5)*phi_n(i) + eps_i_m_0_5*phi_n(i-1);            
+
         double n_i = phi_n(offset+i);
         if (i < interface1_i)
             r(i) += - coeff*(dop_left + n_i); 
@@ -102,24 +103,26 @@ std::pair<vec, mat> r_and_jacobian(vec phi_n)
         jac(i, i+1) = -0.5*phi_diff1 + thermal;
         jac(i, i) = -0.5*phi_diff1 + 0.5*phi_diff2 - 2*thermal;
         jac(i, i-1) = 0.5*phi_diff2 + thermal;        
-    }                
-
-    std::pair<vec, mat> result(r, jac);
-    return result;
+    }                        
 }
 
 
 std::pair<vec, vec> solve_for_phi_n()
 {        
-    int num_iters = 20;   
-    vec phi_n_k(2*N, arma::fill::zeros);    
+    vec r(2*N + 1, arma::fill::zeros);
+    mat jac(2*N + 1, 2*N + 1, arma::fill::zeros);    
+
+    int num_iters = 40;   
+    vec phi_n_k(2*N + 1, arma::fill::zeros);    
     vec log_residuals(num_iters, arma::fill::zeros);
     vec log_deltas(num_iters, arma::fill::zeros);
     for (int k=0; k<num_iters; k++)
     {        
-        std::pair<vec, vec> result = r_and_jacobian(phi_n_k);        
-        vec r = result.first;
-        mat jac = result.second;        
+        r_and_jacobian(r, jac, phi_n_k);                       
+        r.print("r:");        
+        r.save("r.txt", arma::raw_ascii);
+        //jac.print("jac:");
+        jac.save("jac.txt", arma::raw_ascii);
         
         vec delta_phi = arma::solve(jac(span(1, 2*N), span(1, 2*N)), -r(span(1, 2*N)));        
         phi_n_k(span(1, 2*N)) += delta_phi;                
@@ -129,10 +132,10 @@ std::pair<vec, vec> solve_for_phi_n()
         //if (i % 1 == 0)
         //printf("[iter %d]   detal_x: %f   residual: %f\n", i, max(abs(delta_phi_i)), max(abs(residual)));  
         double log_residual = log10(max(abs(r(span(1, 2*N)))));        
-        double log_delta = log10(max(abs(delta_phi(span(1, 2*N)))));        
+        double log_delta = log10(max(abs(delta_phi)));        
         log_residuals[k] = log_residual;
         log_deltas[k] = log_delta;
-        printf("[iter %d]   log detal_x: %f   log residual: %f\n", k, log_delta, log_residual);  
+        printf("[iter %d]   log delta_x: %f   log residual: %f\n", k, log_delta, log_residual);  
         
         if (log_delta < - 10)
             break;
