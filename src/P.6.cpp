@@ -12,7 +12,7 @@
 // #include <fmt/format.h>
 using namespace arma; 
 
-const int N = 61;
+const int N = 601;
 //int n_int = 1e10;
 //double n_int = 1e16;
 double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
@@ -128,7 +128,7 @@ void solve_for_phi_n()
     vec r(2*N + 1, arma::fill::zeros);
     mat jac(2*N + 1, 2*N + 1, arma::fill::zeros);    
 
-    int num_iters = 20;   
+    int num_iters = 30;   
     vec phi_n_k(2*N + 1, arma::fill::zeros);    
     vec log_residuals(num_iters, arma::fill::zeros);
     vec log_deltas(num_iters, arma::fill::zeros);
@@ -177,12 +177,14 @@ void solve_for_phi_n()
         //if (i % 1 == 0)
         //printf("[iter %d]   detal_x: %f   residual: %f\n", i, max(abs(delta_phi_i)), max(abs(residual)));  
         double log_residual = log10(max(abs(r_scaled)));        
-        double log_delta = log10(max(abs(delta_phi)));                
+        //double log_delta = log10(max(abs(C * delta_phi)));                
+        vec F = C * delta_phi;
+        double log_delta = log10(max(abs(F(span(1, N)))));                
         log_deltas[k] = log_delta;
         printf("[iter %d]   log_delta_x: %f   log_residual: %f \n", k, log_delta, log_residual);  
 
-        if (log_delta < - 10)
-            break;
+        // if (log_delta < - 10)
+        //     break;
     }
 
     plot_args args;
@@ -199,8 +201,9 @@ void solve_for_phi_n()
     eDensities = eDensities / 1e6;
     plot(eDensities, args);
 
-    //args.y_label = "log (delta)"; 
-    //plot(log_deltas, args);
+    args.y_label = "log (delta)"; 
+    args.logscale_y = -1;
+    plot(log_deltas, args);
 }
 
 int main() {    
