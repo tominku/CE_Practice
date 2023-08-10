@@ -10,31 +10,37 @@
 // #include <fmt/format.h>
 using namespace arma; 
 
-const int N = 61;
+const int N = 601;
 double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
 //double n_int = 1.0*1e16;
 double T = 300;    
 double thermal = k_B * T / q;
 
-double left_part_width = 0.5 * 1e-9;
-double center_part_width = 5 * 1e-9;
+double left_part_width = 1e-7;
+double center_part_width = 4e-7;
+
 double total_width = left_part_width*2 + center_part_width;
 double deltaX = total_width / (N-1); // in meter  
 double coeff = deltaX*deltaX*q;
 
-double dop_left = 0; // in m^3
-double dop_center = 1e18 * 1e6; // in m^3
+double dop_left = 5e23; // in m^3
+double dop_center = 2e21; // in m^3
 double dop_right = dop_left;
+
 int interface1_i = round(left_part_width/deltaX) + 1;
 int interface2_i = round((left_part_width + center_part_width)/deltaX) + 1;
+
 
 void r_and_jacobian(vec &r, mat &jac, vec &phi, double boundary_potential)
 {
     r.fill(0.0);        
     jac.fill(0.0);    
 
-    r(1) = phi(1) - boundary_potential;
-    r(N) = phi(N) - boundary_potential;    
+    // r(1) = phi(1) - boundary_potential;
+    // r(N) = phi(N) - boundary_potential;    
+
+    r(1) = phi(1) - thermal * log(dop_left/n_int);
+    r(N) = phi(N) - thermal * log(dop_right/n_int);
 
     jac(1, 1) = 1.0; 
     jac(N, N) = 1.0;             
@@ -50,44 +56,40 @@ void r_and_jacobian(vec &r, mat &jac, vec &phi, double boundary_potential)
         
         if (i < interface1_i)
         {                        
-            eps_i_m_0_5 = eps_ox;
-            eps_i_p_0_5 = eps_ox;
+            eps_i_m_0_5 = eps_si;
+            eps_i_p_0_5 = eps_si;
             dop_term = dop_left;                                           
         }
         else if (i == interface1_i)
         {            
-            eps_i_m_0_5 = eps_ox;
+            eps_i_m_0_5 = eps_si;
             eps_i_p_0_5 = eps_si;
-            dop_term = 0.5*(dop_left) + 0.5*(dop_center);                      
-            r(i) += 0.5*r_term_due_to_n_p;            
-            jac(i, i) = 0.5*jac_term_due_to_n_p;            
+            dop_term = 0.5*(dop_left) + 0.5*(dop_center);                                  
         }
         else if (i > interface1_i & i < interface2_i)
         {
             eps_i_m_0_5 = eps_si;
             eps_i_p_0_5 = eps_si;
-            dop_term = dop_center;               
-            r(i) += r_term_due_to_n_p;
-            jac(i, i) = jac_term_due_to_n_p;            
+            dop_term = dop_center;                           
         }
         else if (i == interface2_i)
         {
             eps_i_m_0_5 = eps_si;
-            eps_i_p_0_5 = eps_ox;
-            dop_term = 0.5*(dop_center) + 0.5*(dop_right);            
-            r(i) += 0.5*r_term_due_to_n_p;
-            jac(i, i) = 0.5*jac_term_due_to_n_p;            
+            eps_i_p_0_5 = eps_si;
+            dop_term = 0.5*(dop_center) + 0.5*(dop_right);                        
         }
         else if (i > interface2_i)
         {
-            eps_i_m_0_5 = eps_ox;
-            eps_i_p_0_5 = eps_ox;
+            eps_i_m_0_5 = eps_si;
+            eps_i_p_0_5 = eps_si;
             dop_term = dop_right;                         
         }
-                        
+        
+        r(i) = r_term_due_to_n_p;                    
         r(i) += eps_i_p_0_5*phi(i+1) -(eps_i_p_0_5 + eps_i_m_0_5)*phi(i) + eps_i_m_0_5*phi(i-1);
-        r(i) -= coeff*dop_term;            
+        r(i) += coeff*dop_term;            
 
+        jac(i, i) = jac_term_due_to_n_p;                                      
         jac(i, i) += -(eps_i_p_0_5 + eps_i_m_0_5);
         jac(i, i+1) = eps_i_p_0_5;        
         jac(i, i-1) = eps_i_m_0_5;                                 
@@ -151,38 +153,41 @@ vec solve_phi(double boundary_potential, vec &phi_0)
 
 int main() {    
 
-    double start_potential = 0.33374;    
+    double start_potential = 0;    
 
+    vec one_vector(N+1, arma::fill::ones);
     vec phi_0(N+1, arma::fill::zeros);
-    for (int i=0; i<10; i++)
+    phi_0(span(1, interface1_i)) = (thermal * log(dop_left/n_int)) * one_vector(span(1, interface1_i));
+    phi_0(span(interface1_i+1, interface2_i-1)) = (thermal * log(dop_center/n_int)) * one_vector(span(interface1_i+1, interface2_i-1));
+    phi_0(span(interface2_i, N)) = (thermal * log(dop_right/n_int)) * one_vector(span(interface2_i, N));
+    //for (int i=0; i<10; i++)
     {        
+        int i = 0;
         vec phi = solve_phi(start_potential + (0.1*i), phi_0); 
         phi_0 = phi;   
         
         std::string log = fmt::format("BD {:.2f} V \n", start_potential + (0.1*i));            
-        cout << log;
-        // plot_args args;
-        // //args.total_width = 6.0;
-        // args.N = N;
-        // //args.y_label = "log(max residual)";        
-        // args.y_label = fmt::format("log(delta) V_g: {:.2f} V", boundary_potential - start_potential);
-        // vec potentials = phi_k(span(1, N));            
-        // args.total_width = 6.0;
-        // args.N = N;    
-        // args.y_label = "Potential (V)";
+        cout << log;        
 
         plot_args args;
         args.total_width = 6.0;
         args.N = N;    
         vec n(N+1, arma::fill::zeros);
-        n(span(interface1_i, interface2_i)) = n_int * exp(phi(span(interface1_i, interface2_i)) / thermal);
+        n(span(1, N)) = n_int * exp(phi(span(1, N)) / thermal);
         n /= 1e6;
         args.y_label = "eDensity (cm^3)";
-        vec eDensity = n(span(1, N));
+        args.logscale_y = 10;
+        vec eDensity = n(span(1, N));        
 
-        std::string n_file_name = fmt::format("eDensity_{:.2f}.csv", (0.1*i));
-        eDensity.save(n_file_name, csv_ascii);
+        std::string n_file_name = fmt::format("NP_eDensity_{:.2f}.csv", (0.1*i));
+        eDensity.save(n_file_name, csv_ascii);        
 
+        args.y_label = "Potential (V)";
+        args.logscale_y = -1;
+        vec phi_for_plot = phi(span(1, N));
+        std::string phi_file_name = fmt::format("NP_phi_{:.2f}.csv", (0.1*i));
+        phi_for_plot.save(phi_file_name, csv_ascii);
         plot(eDensity, args);
+        plot(phi_for_plot, args);
     }
 }

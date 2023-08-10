@@ -128,8 +128,25 @@ void solve_for_phi_n()
     vec r(2*N + 1, arma::fill::zeros);
     mat jac(2*N + 1, 2*N + 1, arma::fill::zeros);    
 
-    int num_iters = 30;   
-    vec phi_n_k(2*N + 1, arma::fill::zeros);    
+    int num_iters = 20;   
+    vec phi_n_k(2*N + 1, arma::fill::zeros);  
+
+    vec one_vector(2*N, fill::ones);
+    phi_n_k(span(1, N)) = thermal * log(dop_left/n_int) * one_vector(span(1, N));
+    phi_n_k(span(N+1, 2*N)) = dop_left * one_vector(span(1, N));
+
+    vec phi_from_NP(N, fill::zeros);
+    phi_from_NP.load("NP_phi_0.00.csv");
+    vec n_from_NP(N, fill::zeros);
+    n_from_NP.load("NP_eDensity_0.00.csv");
+
+    bool load_initial_solution_from_NP = true;
+    if (load_initial_solution_from_NP)
+    {
+        phi_n_k(span(1, N)) = phi_from_NP(span(0, N-1));
+        phi_n_k(span(N+1, 2*N)) = n_from_NP(span(0, N-1));
+    }
+
     vec log_residuals(num_iters, arma::fill::zeros);
     vec log_deltas(num_iters, arma::fill::zeros);
     for (int k=0; k<num_iters; k++)
@@ -141,8 +158,7 @@ void solve_for_phi_n()
         //jac.print("jac:");
         //jac.save("jac.txt", arma::raw_ascii);        
         
-        vec c_vector(2*N, fill::zeros);
-        vec one_vector(2*N, fill::ones);
+        vec c_vector(2*N, fill::zeros);        
         c_vector(span(0, N-1)) = thermal * one_vector(span(0, N-1));
         c_vector(span(N, 2*N-1)) = dop_left * one_vector(span(N, 2*N-1));        
         // c_vector(span(0+1, N-1-1)) = thermal * one_vector(span(0, N-1-2));
@@ -168,9 +184,9 @@ void solve_for_phi_n()
         //jac.print("jac:");
         //jac_scaled.save("jac_scaled.txt", arma::raw_ascii);        
         //save_mat("jac_scaled.txt", jac_scaled);
-        vec delta_phi = arma::solve(jac_scaled, -r_scaled);        
+        vec delta_phi_n = arma::solve(jac_scaled, -r_scaled);        
         //vec delta_phi = arma::solve(jac(span(1, 2*N), span(1, 2*N)), -r(span(1, 2*N)));        
-        phi_n_k(span(1, 2*N)) += C * delta_phi;                
+        phi_n_k(span(1, 2*N)) += C * delta_phi_n;                
         
         //phi_i.print("phi_i");
         //jac.print("jac");
@@ -178,8 +194,9 @@ void solve_for_phi_n()
         //printf("[iter %d]   detal_x: %f   residual: %f\n", i, max(abs(delta_phi_i)), max(abs(residual)));  
         double log_residual = log10(max(abs(r_scaled)));        
         //double log_delta = log10(max(abs(C * delta_phi)));                
-        vec F = C * delta_phi;
-        double log_delta = log10(max(abs(F(span(1, N)))));                
+        vec F = C * delta_phi_n;
+        //double log_delta = log10(max(abs(F(span(0, N-1)))));                
+        double log_delta = log10(max(abs(F(span(N, 2*N-1)))));                
         log_deltas[k] = log_delta;
         printf("[iter %d]   log_delta_x: %f   log_residual: %f \n", k, log_delta, log_residual);  
 
@@ -193,12 +210,16 @@ void solve_for_phi_n()
     vec eDensities = phi_n_k(span(N+1, 2*N));
     vec potential = phi_n_k(span(1, N));
         
+
+    eDensities = eDensities / 1e6;
+    std::string n_file_name = fmt::format("DD_eDensity_{:.2f}.csv", 0.0);
+    eDensities.save(n_file_name, csv_ascii);        
+
     args.y_label = "Potential (V)";    
     plot(potential, args);
 
     args.y_label = "eDensity (/cm^3)";  
     args.logscale_y = 10;
-    eDensities = eDensities / 1e6;
     plot(eDensities, args);
 
     args.y_label = "log (delta)"; 
