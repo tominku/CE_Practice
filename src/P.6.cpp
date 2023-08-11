@@ -210,22 +210,25 @@ void solve_for_phi_n(vec &phi_n_k, double bias)
     std::string n_file_name = fmt::format("DD_eDensity_{:.2f}.csv", 0.0);
     eDensities.save(n_file_name, csv_ascii);        
 
-    bool do_plot = false;
+    bool do_plot = true;
     if (do_plot)
     {
-        plot_args args;
-        args.total_width = 600;
-        args.N = N;        
-        args.y_label = "Potential (V)";    
-        plot(potential, args);
+        if (bias == 0 || bias == 0.25)
+        {
+            plot_args args;
+            args.total_width = 600;
+            args.N = N;        
+            args.y_label = "Potential (V)";    
+            plot(potential, args);
 
-        args.y_label = "eDensity (/cm^3)";  
-        args.logscale_y = 10;
-        plot(eDensities, args);
+            args.y_label = "eDensity (/cm^3)";  
+            args.logscale_y = 10;
+            plot(eDensities, args);
 
-        args.y_label = "log (delta)"; 
-        args.logscale_y = -1;
-        plot(log_deltas, args);    
+            args.y_label = "log (delta phi)"; 
+            args.logscale_y = -1;
+            plot(log_deltas, args);    
+        }
     }
 }
 

@@ -159,7 +159,7 @@ int main() {
     double start_potential = 0.333703995136;
 
     vec phi_0(N+1, arma::fill::zeros);
-    for (int i=0; i<10; i++)
+    for (int i=0; i<=10; i++)
     {        
         vec phi = solve_phi(start_potential + (0.1*i), phi_0); 
         phi_0 = phi;   
