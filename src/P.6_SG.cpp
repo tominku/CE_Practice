@@ -12,7 +12,7 @@
 // #include <fmt/format.h>
 using namespace arma; 
 
-const int N = 301;
+const int N = 101;
 //int n_int = 1e10;
 //double n_int = 1e16;
 double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
@@ -47,7 +47,7 @@ double B(double x)
         result = 1.0 - x/2.0 + pow(x, 2.0)/12.0 * (1.0 - pow(x, 2.0)/60.0 * (1.0 - pow(x, 2.0)/42.0 * (1 - pow(x, 2.0)/40 * (1 - 0.02525225525252525*pow(x, 2.0)))));
     }
     else
-    {
+    {     
         result = x / (exp(x) - 1);
     }
     return result;
@@ -65,7 +65,7 @@ double deriveB(double x)
         result = -0.5 + x/6.0 * (1.0 - pow(x, 2.0)/30.0 * (1.0 - pow(x, 2.0)/28.0 * (1 - pow(x, 2.0)/30 * (1 - 0.0315656565656565656565*pow(x, 2.0)))));
     }
     else
-    {
+    {        
         result = 1.0/(exp(x)-1) - B(x)*(1.0 / (exp(x) - 1) + 1);
     }
     return result;
@@ -124,24 +124,27 @@ void r_and_jacobian(vec &r, mat &jac, vec &phi_n, double bias)
 
     for (int i=(N+1+1); i<2*N; i++)
     {                        
-        double n_avg1 = (phi_n(i) + phi_n(i+1)) / 2.0 ;
-        double n_avg2 = (phi_n(i) + phi_n(i-1)) / 2.0 ;    
-        double phi_diff1 = phi_n(i+1-offset) - phi_n(i-offset);
-        double phi_diff2 = phi_n(i-offset) - phi_n(i-1-offset);
-        double n_diff1 = phi_n(i+1) - phi_n(i);
-        double n_diff2 = phi_n(i) - phi_n(i-1);
+        // double n_avg1 = (phi_n(i) + phi_n(i+1)) / 2.0 ;
+        // double n_avg2 = (phi_n(i) + phi_n(i-1)) / 2.0 ;    
+        // double phi_diff1 = phi_n(i+1-offset) - phi_n(i-offset);
+        // double phi_diff2 = phi_n(i-offset) - phi_n(i-1-offset);
+        // double n_diff1 = phi_n(i+1) - phi_n(i);
+        // double n_diff2 = phi_n(i) - phi_n(i-1);
         
-        // residual for continuity
-        //r(i) = -n_avg1*phi_diff1 + thermal*n_diff1 + n_avg2*phi_diff2 - thermal*n_diff2;        
+        // residual for continuity        
         r(i) = phi_n(i+1) * B((phi_n(i+1-offset) - phi_n(i-offset)) / thermal) - 
             phi_n(i) * B((phi_n(i-offset) - phi_n(i+1-offset)) / thermal) -
             phi_n(i) * B((phi_n(i-offset) - phi_n(i-1-offset)) / thermal) +
             phi_n(i-1) * B((phi_n(i-1-offset) - phi_n(i-offset)) / thermal);        
 
         // continuity w.r.t. ns
-        jac(i, i+1) = B((phi_n(i+1-offset) - phi_n(i-offset)) / thermal);
-        jac(i, i) = - B((phi_n(i-offset) - phi_n(i+1-offset)) / thermal) - B((phi_n(i-offset) - phi_n(i-1-offset)) / thermal);
-        jac(i, i-1) = B((phi_n(i-1-offset) - phi_n(i-offset)) / thermal);
+        jac(i, i+1) = 
+            B((phi_n(i+1-offset) - phi_n(i-offset)) / thermal);
+        jac(i, i) = 
+            - B((phi_n(i-offset) - phi_n(i+1-offset)) / thermal) 
+            - B((phi_n(i-offset) - phi_n(i-1-offset)) / thermal);
+        jac(i, i-1) = 
+            B((phi_n(i-1-offset) - phi_n(i-offset)) / thermal);
 
         // continuity w.r.t. phis
         jac(i, i+1-offset) = 
@@ -149,7 +152,7 @@ void r_and_jacobian(vec &r, mat &jac, vec &phi_n, double bias)
             phi_n(i)*deriveB((phi_n(i-offset) - phi_n(i+1-offset)) / thermal);
         
         jac(i, i-offset) = -jac(i, i+1-offset) - 
-            phi_n(i)*deriveB((phi_n(i-offset) - phi_n(i-1-offset)) / thermal) +
+            phi_n(i)*deriveB((phi_n(i-offset) - phi_n(i-1-offset)) / thermal) -
             phi_n(i-1)*deriveB((phi_n(i-1-offset) - phi_n(i-offset)) / thermal);
         
         jac(i, i-1-offset) = 
@@ -360,7 +363,27 @@ void compute_I_V_curve()
     current_densities.save("current_densities.txt", arma::raw_ascii);
 }
 
+void save_B(std::string file_name)
+{
+    std::ofstream ofile(file_name);
+    int N = 1000;        
+    //vec a = arma::linspace(-0.2, 0.2, N);
+    vec a = arma::linspace(-4, 4, N);
+    for (int i=0; i<N; ++i)
+    {        
+        //double x = i*0.001;
+        double x = a(i);
+        double b_value = B(x);
+        double derive_b = deriveB(x);
+        std::string str = fmt::format("{}, {:.5f}, {}", x, b_value, derive_b);      
+        ofile << str;               
+        ofile << "\n";
+    }    
+    ofile.close();
+}
+
 int main() {    
     //compute_DD_n_from_NP_solution();
     compute_I_V_curve();
+    //save_B("test.txt");
 }
