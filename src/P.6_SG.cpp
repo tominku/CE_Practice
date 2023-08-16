@@ -12,7 +12,7 @@
 // #include <fmt/format.h>
 using namespace arma; 
 
-const int N = 601;
+const int N = 301;
 //int n_int = 1e10;
 //double n_int = 1e16;
 double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
@@ -50,7 +50,7 @@ double B(double x)
     {
         result = x / (exp(x) - 1);
     }
-    return result
+    return result;
 }
 
 double deriveB(double x)
@@ -66,9 +66,9 @@ double deriveB(double x)
     }
     else
     {
-        result = 
+        result = 1.0/(exp(x)-1) - B(x)*(1.0 / (exp(x) - 1) + 1);
     }
-    return result
+    return result;
 }
 
 // residual(phi): the size of r(phi) is N.
@@ -132,17 +132,33 @@ void r_and_jacobian(vec &r, mat &jac, vec &phi_n, double bias)
         double n_diff2 = phi_n(i) - phi_n(i-1);
         
         // residual for continuity
-        r(i) = -n_avg1*phi_diff1 + thermal*n_diff1 + n_avg2*phi_diff2 - thermal*n_diff2;        
-
-        // continuity w.r.t. phis
-        jac(i, i+1-offset) = -n_avg1;
-        jac(i, i-offset) = n_avg1 + n_avg2;
-        jac(i, i-1-offset) = -n_avg2;
+        //r(i) = -n_avg1*phi_diff1 + thermal*n_diff1 + n_avg2*phi_diff2 - thermal*n_diff2;        
+        r(i) = phi_n(i+1) * B((phi_n(i+1-offset) - phi_n(i-offset)) / thermal) - 
+            phi_n(i) * B((phi_n(i-offset) - phi_n(i+1-offset)) / thermal) -
+            phi_n(i) * B((phi_n(i-offset) - phi_n(i-1-offset)) / thermal) +
+            phi_n(i-1) * B((phi_n(i-1-offset) - phi_n(i-offset)) / thermal);        
 
         // continuity w.r.t. ns
-        jac(i, i+1) = -0.5*phi_diff1 + thermal;
-        jac(i, i) = -0.5*phi_diff1 + 0.5*phi_diff2 - 2*thermal;
-        jac(i, i-1) = 0.5*phi_diff2 + thermal;        
+        jac(i, i+1) = B((phi_n(i+1-offset) - phi_n(i-offset)) / thermal);
+        jac(i, i) = - B((phi_n(i-offset) - phi_n(i+1-offset)) / thermal) - B((phi_n(i-offset) - phi_n(i-1-offset)) / thermal);
+        jac(i, i-1) = B((phi_n(i-1-offset) - phi_n(i-offset)) / thermal);
+
+        // continuity w.r.t. phis
+        jac(i, i+1-offset) = 
+            phi_n(i+1)*deriveB((phi_n(i+1-offset) - phi_n(i-offset)) / thermal) +
+            phi_n(i)*deriveB((phi_n(i-offset) - phi_n(i+1-offset)) / thermal);
+        
+        jac(i, i-offset) = -jac(i, i+1-offset) - 
+            phi_n(i)*deriveB((phi_n(i-offset) - phi_n(i-1-offset)) / thermal) +
+            phi_n(i-1)*deriveB((phi_n(i-1-offset) - phi_n(i-offset)) / thermal);
+        
+        jac(i, i-1-offset) = 
+            phi_n(i)*deriveB((phi_n(i-offset) - phi_n(i-1-offset)) / thermal) +
+            phi_n(i-1)*deriveB((phi_n(i-1-offset) - phi_n(i-offset)) / thermal);
+
+        jac(i, i+1-offset) /= thermal;
+        jac(i, i-offset) /= thermal;
+        jac(i, i-1-offset) /= thermal;
     }                        
 }
 
