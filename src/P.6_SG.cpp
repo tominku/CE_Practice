@@ -12,7 +12,7 @@
 // #include <fmt/format.h>
 using namespace arma; 
 
-const int N = 101;
+const int N = 21;
 //int n_int = 1e10;
 //double n_int = 1e16;
 double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
@@ -22,13 +22,13 @@ double T = 300;
 bool use_normalizer = false;
 double thermal = k_B * T / q;
 
-double left_part_width = 1e-7;
-double center_part_width = 4e-7;
+double left_part_width = 1e-8;
+double center_part_width = 4e-8;
 double deltaX = (left_part_width*2 + center_part_width) / (N-1); // in meter  
 double coeff = deltaX*deltaX*q;
 
-double dop_left = 5e23; // in m^3
-double dop_center = 2e21; // in m^3
+double dop_left = 5e25; // in m^3
+double dop_center = 2e23; // in m^3
 double dop_right = dop_left;
 int interface1_i = round(left_part_width/deltaX) + 1;
 int interface2_i = round((left_part_width + center_part_width)/deltaX) + 1;
@@ -268,7 +268,7 @@ void solve_for_phi_n(vec &phi_n_k, double bias)
     bool do_plot = true;
     if (do_plot)
     {
-        if (bias == 0 || bias == 0.25)
+        if (bias == 0 || bias > 0.9)
         {
             plot_args args;
             args.total_width = 600;
@@ -344,7 +344,7 @@ void compute_I_V_curve()
 
     bool load_initial_solution_from_NP = false;    
 
-    int num_biases = 0;
+    int num_biases = 21;
     vec current_densities(num_biases+1, arma::fill::zeros);    
     for (int i=0; i<=(num_biases); ++i)
     {
