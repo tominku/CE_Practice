@@ -88,8 +88,8 @@ void r_and_jacobian(vec &r, mat &jac, vec &phi_n_p, double bias)
     jac(offset+offset+N, offset+offset+N) = 1.0;     
 
     /*
-    r = [r_poisson; r_continuity]
-    Jacobian = r w.r.t. phi_n
+    r = [r_poisson; r_elec_continuity, r_hole_continuity]
+    Jacobian = r w.r.t. phi_n_p
     */     
 
     double eps_i_p_0_5 = eps_si;
