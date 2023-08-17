@@ -275,7 +275,10 @@ void solve_for_phi_n(vec &phi_n_p_k, double bias)
     eDensities.save(eDensities_file_name, csv_ascii);        
     holeDensities = holeDensities / 1e6;
     std::string holeDensities_file_name = fmt::format("Poisson_DD_holeDensity_{:.2f}.csv", bias);
-    holeDensities.save(holeDensities_file_name, csv_ascii);        
+    holeDensities.save(holeDensities_file_name, csv_ascii);
+
+    double phi_bi = thermal * log(dop_left*dop_right/pow(n_int, 2));
+    printf("phi_bi: %f \n", phi_bi);  
 
     bool do_plot = true;
     if (do_plot)
@@ -321,13 +324,16 @@ void compute_I_V_curve()
         printf("Applying Bias: %f V \n", bias);
         solve_for_phi_n(phi_n_p_k, bias);
 
-        int j = N-2;
+        int j = 43;
         vec phi = phi_n_p_k(span(1, N));
         vec n = phi_n_p_k(span(N+1, 2*N)) * 1e-8;
         double mu = 1417;
-        double J = q * mu * (((n(j+1) + n(j)) / 2.0) * ((phi(j+1) - phi(j)) / deltaX) - thermal*(n(j+1) - n(j))/deltaX);
+        double J_term1 = q * mu * ((n(j+1) + n(j)) / 2.0) * ((phi(j+1) - phi(j)) / deltaX);
+        double J_term2 = q * mu * thermal*(n(j+1) - n(j))/deltaX;
+        //double J = q * mu * (((n(j+1) + n(j)) / 2.0) * ((phi(j+1) - phi(j)) / deltaX) - thermal*(n(j+1) - n(j))/deltaX);
+        double J = J_term1 - J_term2;
         current_densities(i) = J;
-        printf("Result Current Density J: %f \n", J);
+        printf("Result Current Density J: %f, term1: %f, term2: %f \n", J, J_term1, J_term2);
     }
     current_densities.save("current_densities.txt", arma::raw_ascii);
 }

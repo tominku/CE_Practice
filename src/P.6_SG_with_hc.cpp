@@ -328,7 +328,7 @@ void compute_I_V_curve()
         printf("Applying Bias: %f V \n", bias);
         solve_for_phi_n(phi_n_p_k, bias);
 
-        int j = N-2;
+        int j = 25;
         vec phi = phi_n_p_k(span(1, N));
         vec n = phi_n_p_k(span(N+1, 2*N)) * 1e-8;
         double mu = 1417;
