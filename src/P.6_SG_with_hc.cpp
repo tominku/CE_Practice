@@ -66,15 +66,26 @@ void r_and_jacobian(vec &r, mat &jac, vec &phi_n_p, double bias)
     jac.fill(0.0);
     int offset = N;    
 
-    r(1) = phi_n_p(1) - thermal * log(dop_left/n_int);
-    r(N) = phi_n_p(N) - thermal * log(dop_right/n_int) - bias;
+    // from B.C. for phi
+    double phi1 = thermal * log(dop_left/n_int);
+    double phiN = thermal * log(dop_right/n_int) + bias;
+    r(1) = phi_n_p(1) - phi1;
+    r(N) = phi_n_p(N) - phiN;
+    // from B.C. for electron density
     r(offset+1) = phi_n_p(offset + 1) - dop_left;
     r(offset+N) = phi_n_p(offset + N) - dop_right;
+    // from B.C. for hole density
+    double holeDensity1 = n_int*(-phi1/thermal);
+    double holeDensityN = n_int*(-phiN/thermal);
+    r(offset+offset+1) = phi_n_p(offset+offset+1) - holeDensity1;
+    r(offset+offset+N) = phi_n_p(offset+offset+N) - holeDensityN;
 
     jac(1, 1) = 1.0; 
     jac(N, N) = 1.0; 
     jac(offset+1, offset+1) = 1.0; 
-    jac(offset+N, offset+N) = 1.0;     
+    jac(offset+N, offset+N) = 1.0;       
+    jac(offset+offset+1, offset+offset+1) = 1.0; 
+    jac(offset+offset+N, offset+offset+N) = 1.0;     
 
     /*
     r = [r_poisson; r_continuity]
