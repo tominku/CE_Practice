@@ -107,9 +107,9 @@ void r_and_jacobian(vec &r, mat &jac, vec &phi_n_p, double bias)
         else if (i == interface1_i)
             r(i) += - coeff*(0.5*(-dop_left) + 0.5*(-dop_center) + n_i - p_i); 
         else if (i > interface1_i & i < interface2_i)
-            r(i) += - coeff*((-dop_center) + n_i) - p_i; 
+            r(i) += - coeff*((-dop_center) + n_i - p_i); 
         else if (i == interface2_i)
-            r(i) += - coeff*(0.5*(-dop_center) + 0.5*(-dop_right) + n_i) - p_i; 
+            r(i) += - coeff*(0.5*(-dop_center) + 0.5*(-dop_right) + n_i - p_i); 
         else if (i > interface2_i)
             r(i) += - coeff*((-dop_right) + n_i - p_i);             
 
@@ -125,14 +125,7 @@ void r_and_jacobian(vec &r, mat &jac, vec &phi_n_p, double bias)
     }
 
     for (int i=(N+1+1); i<2*N; i++)
-    {                        
-        // double n_avg1 = (phi_n(i) + phi_n(i+1)) / 2.0 ;
-        // double n_avg2 = (phi_n(i) + phi_n(i-1)) / 2.0 ;    
-        // double phi_diff1 = phi_n(i+1-offset) - phi_n(i-offset);
-        // double phi_diff2 = phi_n(i-offset) - phi_n(i-1-offset);
-        // double n_diff1 = phi_n(i+1) - phi_n(i);
-        // double n_diff2 = phi_n(i) - phi_n(i-1);
-        
+    {                                        
         // residual for electron continuity        
         r(i) = phi_n_p(i+1) * B((phi_n_p(i+1-offset) - phi_n_p(i-offset)) / thermal) - 
             phi_n_p(i) * B((phi_n_p(i-offset) - phi_n_p(i+1-offset)) / thermal) -
@@ -185,7 +178,7 @@ void r_and_jacobian(vec &r, mat &jac, vec &phi_n_p, double bias)
             phi_n_p(i+1+offset)*deriveB(-(phi_n_p(i+1-offset) - phi_n_p(i-offset)) / thermal) +
             phi_n_p(i+offset)*deriveB(-(phi_n_p(i-offset) - phi_n_p(i+1-offset)) / thermal);
         
-        jac(i+offset, i-offset) = -jac(i, i+1-offset) - 
+        jac(i+offset, i-offset) = -jac(i+offset, i+1-offset) - 
             phi_n_p(i+offset)*deriveB(-(phi_n_p(i-offset) - phi_n_p(i-1-offset)) / thermal) -
             phi_n_p(i-1+offset)*deriveB(-(phi_n_p(i-1-offset) - phi_n_p(i-offset)) / thermal);
         
@@ -214,86 +207,74 @@ void save_mat(std::string file_name, mat &m)
     ofile.close();
 }
 
-void solve_for_phi_n(vec &phi_n_k, double bias)
+void solve_for_phi_n(vec &phi_n_p_k, double bias)
 {        
-    vec r(2*N + 1, arma::fill::zeros);
-    mat jac(2*N + 1, 2*N + 1, arma::fill::zeros);    
+    vec r(3*N + 1, arma::fill::zeros);
+    mat jac(3*N + 1, 3*N + 1, arma::fill::zeros);    
 
-    int num_iters = 15;   
+    int num_iters = 100;   
 
     vec log_residuals(num_iters, arma::fill::zeros);
     vec log_deltas(num_iters, arma::fill::zeros);
 
     for (int k=0; k<num_iters; k++)
     {        
-        r_and_jacobian(r, jac, phi_n_k, bias);   
+        r_and_jacobian(r, jac, phi_n_p_k, bias);   
         
         //r.print("r:");        
         //r.save("r.txt", arma::raw_ascii);
         //jac.print("jac:");
         //jac.save("jac.txt", arma::raw_ascii);        
-        if (compute_only_n)
-        {
-            mat jac_part = jac(span(N+1, 2*N), span(N+1, 2*N));
-            vec r_part = r(span(N+1, 2*N));
-            vec delta_n = arma::solve(jac_part, -r_part);  
-            phi_n_k(span(N+1, 2*N)) += delta_n;
+                    
+        vec c_vector(3*N + 1, fill::zeros);        
+        c_vector(span(1, N)) = thermal * one_vector(span(1, N));
+        c_vector(span(N+1, 2*N)) = dop_left * one_vector(span(1, N));        
+        c_vector(span(2*N+1, 3*N)) = dop_left * one_vector(span(1, N));        
+        // c_vector(span(0+1, N-1-1)) = thermal * one_vector(span(0, N-1-2));
+        // c_vector(span(N+1, 2*N-1-1)) = dop_left * one_vector(span(N, 2*N-1-2));        
+        mat C = diagmat(c_vector(span(1, 3*N)));  
+        //mat C = eye(2*N, 2*N);
+        mat jac_scaled = jac(span(1, 3*N), span(1, 3*N)) * C;
+        
+        colvec r_vector_temp = arma::sum(abs(jac_scaled), 1);
+        vec r_vector(3*N, fill::zeros);
+        for (int p=0; p<3*N; p++)        
+            r_vector(p) = 1 / (r_vector_temp(p) + 1e-10);                
+        mat R = diagmat(r_vector);              
+        //mat R_eye = eye(2*N, 2*N);
+        //R = R_eye;
+        jac_scaled = R * jac_scaled;
+        vec r_scaled = R * r(span(1, 3*N));
 
-            double log_residual = log10(max(abs(r_part)));                                            
-            double log_delta = log10(max(abs(delta_n)));                
-            log_deltas[k] = log_delta;
-            printf("[iter %d]   log_delta_x: %f   log_residual: %f \n", k, log_delta, log_residual);              
-        }
-        else{            
-            vec c_vector(2*N, fill::zeros);        
-            c_vector(span(0, N-1)) = thermal * one_vector(span(0, N-1));
-            c_vector(span(N, 2*N-1)) = dop_left * one_vector(span(N, 2*N-1));        
-            // c_vector(span(0+1, N-1-1)) = thermal * one_vector(span(0, N-1-2));
-            // c_vector(span(N+1, 2*N-1-1)) = dop_left * one_vector(span(N, 2*N-1-2));        
-            mat C = diagmat(c_vector);  
-            //mat C = eye(2*N, 2*N);
-            mat jac_scaled = jac(span(1, 2*N), span(1, 2*N)) * C;
-            
-            colvec r_vector_temp = arma::sum(abs(jac_scaled), 1);
-            vec r_vector(2*N, fill::zeros);
-            for (int p=0; p<2*N; p++)        
-                r_vector(p) = 1 / (r_vector_temp(p) + 1e-10);                
-            mat R = diagmat(r_vector);              
-            //mat R_eye = eye(2*N, 2*N);
-            //R = R_eye;
-            jac_scaled = R * jac_scaled;
-            vec r_scaled = R * r(span(1, 2*N));
+        double cond_jac = arma::cond(jac_scaled);
+        printf("[iter %d]   condition number of scaled jac: %f \n", k, cond_jac); 
+        
+        //jac_scaled.print("jac_scaled: ");
+        //jac.print("jac:");
+        //jac_scaled.save("jac_scaled.txt", arma::raw_ascii);        
+        //save_mat("jac_scaled.txt", jac_scaled);
+        vec delta_phi_n = arma::solve(jac_scaled, -r_scaled);        
+        //vec delta_phi = arma::solve(jac(span(1, 2*N), span(1, 2*N)), -r(span(1, 2*N)));        
+        phi_n_p_k(span(1, 3*N)) += C * delta_phi_n;                
+        
+        //phi_i.print("phi_i");
+        //jac.print("jac");
+        //if (i % 1 == 0)
+        //printf("[iter %d]   detal_x: %f   residual: %f\n", i, max(abs(delta_phi_i)), max(abs(residual)));  
+        double log_residual = log10(max(abs(r_scaled)));        
+        //double log_delta = log10(max(abs(C * delta_phi)));                
+        vec F = C * delta_phi_n;
+        double log_delta = log10(max(abs(F(span(0, N-1)))));                
+        //double log_delta = log10(max(abs(F(span(N, 2*N-1)))));                
+        log_deltas[k] = log_delta;
+        printf("[iter %d]   log_delta_x: %f   log_residual: %f \n", k, log_delta, log_residual);  
 
-            double cond_jac = arma::cond(jac_scaled);
-            printf("[iter %d]   condition number of scaled jac: %f \n", k, cond_jac); 
-            
-            //jac_scaled.print("jac_scaled: ");
-            //jac.print("jac:");
-            //jac_scaled.save("jac_scaled.txt", arma::raw_ascii);        
-            //save_mat("jac_scaled.txt", jac_scaled);
-            vec delta_phi_n = arma::solve(jac_scaled, -r_scaled);        
-            //vec delta_phi = arma::solve(jac(span(1, 2*N), span(1, 2*N)), -r(span(1, 2*N)));        
-            phi_n_k(span(1, 2*N)) += C * delta_phi_n;                
-            
-            //phi_i.print("phi_i");
-            //jac.print("jac");
-            //if (i % 1 == 0)
-            //printf("[iter %d]   detal_x: %f   residual: %f\n", i, max(abs(delta_phi_i)), max(abs(residual)));  
-            double log_residual = log10(max(abs(r_scaled)));        
-            //double log_delta = log10(max(abs(C * delta_phi)));                
-            vec F = C * delta_phi_n;
-            double log_delta = log10(max(abs(F(span(0, N-1)))));                
-            //double log_delta = log10(max(abs(F(span(N, 2*N-1)))));                
-            log_deltas[k] = log_delta;
-            printf("[iter %d]   log_delta_x: %f   log_residual: %f \n", k, log_delta, log_residual);  
-
-            // if (log_residual < - 10)
-            //     break;
-        }
+        // if (log_residual < - 10)
+        //     break;
     }
     
-    vec eDensities = phi_n_k(span(N+1, 2*N));
-    vec potential = phi_n_k(span(1, N));        
+    vec eDensities = phi_n_p_k(span(N+1, 2*N));
+    vec potential = phi_n_p_k(span(1, N));        
 
     eDensities = eDensities / 1e6;
     std::string n_file_name = fmt::format("DD_eDensity_{:.2f}.csv", 0.0);
@@ -321,74 +302,28 @@ void solve_for_phi_n(vec &phi_n_k, double bias)
     }
 }
 
-void compute_DD_n_from_NP_solution()
-{
-    compute_only_n = true;
-    vec phi_n_k(2*N + 1, arma::fill::zeros);  
-    
-    phi_n_k(span(1, N)) = thermal * log(dop_left/n_int) * one_vector(span(1, N));
-    phi_n_k(span(N+1, 2*N)) = dop_left * one_vector(span(1, N));    
-
-    bool load_initial_solution_from_NP = true;        
-    
-    double bias = 0;
-    if (load_initial_solution_from_NP)
-    {
-        std::string fn_phi_from_NP = fmt::format("NP_phi_{:.2f}.csv", bias); 
-        cout << fn_phi_from_NP << "\n";
-        //printf("fn_phi_from_NP: %s \n", fn_phi_from_NP);     
-        vec phi_from_NP(N, fill::zeros);
-        phi_from_NP.load(fn_phi_from_NP);
-                        
-        phi_n_k(span(1, N)) = phi_from_NP(span(0, N-1));        
-    }
-    
-    printf("Applying Bias: %f V \n", bias);
-    solve_for_phi_n(phi_n_k, bias);    
-
-    vec eDensities = phi_n_k(span(N+1, 2*N));
-    vec potential = phi_n_k(span(1, N));        
-
-    eDensities = eDensities / 1e6;
-    std::string n_file_name = fmt::format("DD_eDensity_{:.2f}.csv", 0.0);
-    eDensities.save(n_file_name, csv_ascii);        
-
-    bool do_plot = true;
-    if (do_plot)
-    {
-        plot_args args;
-        args.total_width = 600;
-        args.N = N;        
-        args.y_label = "Potential (V)";    
-        plot(potential, args);
-
-        args.y_label = "eDensity (/cm^3)";  
-        args.logscale_y = 10;
-        plot(eDensities, args);
-    }            
-}
 
 void compute_I_V_curve()
 {
     compute_only_n = false;
-    vec phi_n_k(2*N + 1, arma::fill::zeros);  
+    vec phi_n_p_k(3*N + 1, arma::fill::zeros);  
     
-    phi_n_k(span(1, N)) = thermal * log(dop_left/n_int) * one_vector(span(1, N));
-    phi_n_k(span(N+1, 2*N)) = dop_left * one_vector(span(1, N));    
+    phi_n_p_k(span(1, N)) = thermal * log(dop_left/n_int) * one_vector(span(1, N));
+    phi_n_p_k(span(N+1, 2*N)) = dop_left * one_vector(span(1, N));    
 
     bool load_initial_solution_from_NP = false;    
 
-    int num_biases = 21;
+    int num_biases = 0;
     vec current_densities(num_biases+1, arma::fill::zeros);    
     for (int i=0; i<=(num_biases); ++i)
     {
         double bias = i * 0.05;
         printf("Applying Bias: %f V \n", bias);
-        solve_for_phi_n(phi_n_k, bias);
+        solve_for_phi_n(phi_n_p_k, bias);
 
         int j = N-2;
-        vec phi = phi_n_k(span(1, N));
-        vec n = phi_n_k(span(N+1, 2*N)) * 1e-8;
+        vec phi = phi_n_p_k(span(1, N));
+        vec n = phi_n_p_k(span(N+1, 2*N)) * 1e-8;
         double mu = 1417;
         double J = q * mu * (((n(j+1) + n(j)) / 2.0) * ((phi(j+1) - phi(j)) / deltaX) - thermal*(n(j+1) - n(j))/deltaX);
         current_densities(i) = J;

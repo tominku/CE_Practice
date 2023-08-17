@@ -111,7 +111,7 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n, double bias)
 }
 
 void save_mat(std::string file_name, mat &m)
-{
+{    
     std::ofstream ofile(file_name);        
     for (int i=0; i<m.n_rows; ++i)
     {
