@@ -12,7 +12,7 @@
 // #include <fmt/format.h>
 using namespace arma; 
 
-const int N = 101;
+const int N = 21;
 //int n_int = 1e10;
 //double n_int = 1e16;
 double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
@@ -212,7 +212,7 @@ void solve_for_phi_n(vec &phi_n_p_k, double bias)
     vec r(3*N + 1, arma::fill::zeros);
     mat jac(3*N + 1, 3*N + 1, arma::fill::zeros);    
 
-    int num_iters = 100;   
+    int num_iters = 15;   
 
     vec log_residuals(num_iters, arma::fill::zeros);
     vec log_deltas(num_iters, arma::fill::zeros);
