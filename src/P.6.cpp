@@ -190,7 +190,8 @@ void solve_for_phi_n(vec &phi_n_k, double bias)
             //jac.print("jac");
             //if (i % 1 == 0)
             //printf("[iter %d]   detal_x: %f   residual: %f\n", i, max(abs(delta_phi_i)), max(abs(residual)));  
-            double log_residual = log10(max(abs(r_scaled)));        
+            //double log_residual = log10(max(abs(r_scaled)));        
+            double log_residual = log10(max(abs(r(span(1, 2*N)))));        
             //double log_delta = log10(max(abs(C * delta_phi)));                
             vec F = C * delta_phi_n;
             double log_delta = log10(max(abs(F(span(0, N-1)))));                
@@ -279,6 +280,27 @@ void compute_DD_n_from_NP_solution()
     }            
 }
 
+
+void save_current_densities(vec &phi_n)
+{
+    vec phi = phi_n(span(1, N));
+    vec n = phi_n(span(N+1, 2*N));
+    vec current_densities(N+2, arma::fill::zeros);
+    for (int i=2; i<=N-2; i++)
+    {            
+        double mu = 1417;
+        double J_term1 = -q * mu * ((n(i+1) + n(i)) / 2.0) * ((phi(i+1) - phi(i)) / deltaX);
+        double J_term2 = q * mu * thermal*(n(i+1) - n(i))/deltaX;
+        //double J = q * mu * (((n(j+1) + n(j)) / 2.0) * ((phi(j+1) - phi(j)) / deltaX) - thermal*(n(j+1) - n(j))/deltaX);
+        double J = J_term1 + J_term2;
+        J *= 1e-8;
+        current_densities(i) = J;
+        printf("Result Current Density J: %f, term1: %f, term2: %f \n", J, J_term1, J_term2);
+    }
+    current_densities.save("current_densities.txt", arma::raw_ascii);
+
+}
+
 void compute_I_V_curve()
 {
     compute_only_n = false;
@@ -289,23 +311,21 @@ void compute_I_V_curve()
 
     bool load_initial_solution_from_NP = false;    
 
-    int num_biases = 10;
-    vec current_densities(num_biases+1, arma::fill::zeros);    
+    int num_biases = 0;    
     for (int i=0; i<=(num_biases); ++i)
     {
         double bias = i * 0.05;
         printf("Applying Bias: %f V \n", bias);
         solve_for_phi_n(phi_n_k, bias);
-
-        int j = N-2;
-        vec phi = phi_n_k(span(1, N));
-        vec n = phi_n_k(span(N+1, 2*N)) * 1e-8;
-        double mu = 1417;
-        double J = q * mu * (((n(j+1) + n(j)) / 2.0) * ((phi(j+1) - phi(j)) / deltaX) - thermal*(n(j+1) - n(j))/deltaX);
-        current_densities(i) = J;
-        printf("Result Current Density J: %f \n", J);
+        //save_current_densities(phi_n_k);                        
+        //int j = N-2;
+        //vec phi = phi_n_k(span(1, N));
+        //vec n = phi_n_k(span(N+1, 2*N)) * 1e-8;
+        //double mu = 1417;
+        //double J = q * mu * (((n(j+1) + n(j)) / 2.0) * ((phi(j+1) - phi(j)) / deltaX) - thermal*(n(j+1) - n(j))/deltaX);        
+        //printf("Result Current Density J: %f \n", J);
     }
-    current_densities.save("current_densities.txt", arma::raw_ascii);
+    //current_densities.save("current_densities.txt", arma::raw_ascii);
 }
 
 int main() {    
