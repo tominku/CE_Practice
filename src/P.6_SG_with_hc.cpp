@@ -38,18 +38,12 @@ bool compute_only_n = true;
 double B(double x)
 {
     double result = 0.0;
-    if (abs(x) < 0.0252)
-    {
-        result = 1.0 - x/2.0 + pow(x, 2.0)/12.0 * (1.0 - pow(x, 2.0)/60.0 * (1.0 - pow(x, 2.0)/42.0));
-    }
+    if (abs(x) < 0.0252)    
+        result = 1.0 - x/2.0 + pow(x, 2.0)/12.0 * (1.0 - pow(x, 2.0)/60.0 * (1.0 - pow(x, 2.0)/42.0));    
     else if (abs(x) < 0.15)
-    {
         result = 1.0 - x/2.0 + pow(x, 2.0)/12.0 * (1.0 - pow(x, 2.0)/60.0 * (1.0 - pow(x, 2.0)/42.0 * (1 - pow(x, 2.0)/40 * (1 - 0.02525225525252525*pow(x, 2.0)))));
-    }
     else
-    {     
         result = x / (exp(x) - 1);
-    }
     return result;
 }
 
@@ -57,17 +51,11 @@ double deriveB(double x)
 {
     double result = 0.0;
     if (abs(x) < 0.0252)
-    {
         result = -0.5 + x/6.0 * (1.0 - pow(x, 2.0)/30.0 * (1.0 - pow(x, 2.0)/28.0));
-    }
     else if (abs(x) < 0.15)
-    {
         result = -0.5 + x/6.0 * (1.0 - pow(x, 2.0)/30.0 * (1.0 - pow(x, 2.0)/28.0 * (1 - pow(x, 2.0)/30 * (1 - 0.0315656565656565656565*pow(x, 2.0)))));
-    }
     else
-    {        
         result = 1.0/(exp(x)-1) - B(x)*(1.0 / (exp(x) - 1) + 1);
-    }
     return result;
 }
 
@@ -76,17 +64,18 @@ void r_and_jacobian(vec &r, mat &jac, vec &phi_n, double bias)
 {
     r.fill(0.0);        
     jac.fill(0.0);
-    int offset = N;
+    int offset1 = N;
+    int offset2 = N + N;
 
     r(1) = phi_n(1) - thermal * log(dop_left/n_int);
     r(N) = phi_n(N) - thermal * log(dop_right/n_int) - bias;
-    r(offset+1) = phi_n(offset + 1) - dop_left;
-    r(offset+N) = phi_n(offset + N) - dop_right;
+    r(offset1+1) = phi_n(offset1 + 1) - dop_left;
+    r(offset1+N) = phi_n(offset1 + N) - dop_right;
 
     jac(1, 1) = 1.0; 
     jac(N, N) = 1.0; 
-    jac(offset+1, offset+1) = 1.0; 
-    jac(offset+N, offset+N) = 1.0;     
+    jac(offset1+1, offset1+1) = 1.0; 
+    jac(offset1+N, offset1+N) = 1.0;     
 
     /*
     r = [r_poisson; r_continuity]
@@ -101,25 +90,28 @@ void r_and_jacobian(vec &r, mat &jac, vec &phi_n, double bias)
         // residual for poisson
         r(i) = eps_i_p_0_5*phi_n(i+1) -(eps_i_p_0_5 + eps_i_m_0_5)*phi_n(i) + eps_i_m_0_5*phi_n(i-1);            
 
-        double n_i = phi_n(offset+i);
+        double n_i = phi_n(offset1+i);
+        double p_i = phi_n(offset2+i);
         if (i < interface1_i)
-            r(i) += - coeff*((-dop_left) + n_i); 
+            r(i) += - coeff*((-dop_left) + n_i - p_i); 
         else if (i == interface1_i)
-            r(i) += - coeff*(0.5*(-dop_left) + 0.5*(-dop_center) + n_i); 
+            r(i) += - coeff*(0.5*(-dop_left) + 0.5*(-dop_center) + n_i - p_i); 
         else if (i > interface1_i & i < interface2_i)
-            r(i) += - coeff*((-dop_center) + n_i); 
+            r(i) += - coeff*((-dop_center) + n_i) - p_i; 
         else if (i == interface2_i)
-            r(i) += - coeff*(0.5*(-dop_center) + 0.5*(-dop_right) + n_i); 
+            r(i) += - coeff*(0.5*(-dop_center) + 0.5*(-dop_right) + n_i) - p_i; 
         else if (i > interface2_i)
-            r(i) += - coeff*((-dop_right) + n_i);             
+            r(i) += - coeff*((-dop_right) + n_i - p_i);             
 
         // poisson w.r.t phis
         jac(i, i+1) = eps_i_p_0_5;
         jac(i, i) = -(eps_i_p_0_5 + eps_i_m_0_5);
         jac(i, i-1) = eps_i_m_0_5;
         
-        // poisson w.r.t ns
-        jac(i, i+offset) = - coeff;
+        // poisson w.r.t n
+        jac(i, i+offset1) = - coeff;
+        // poisson w.r.t p
+        jac(i, i+offset2) = coeff;
     }
 
     for (int i=(N+1+1); i<2*N; i++)
@@ -132,36 +124,36 @@ void r_and_jacobian(vec &r, mat &jac, vec &phi_n, double bias)
         // double n_diff2 = phi_n(i) - phi_n(i-1);
         
         // residual for continuity        
-        r(i) = phi_n(i+1) * B((phi_n(i+1-offset) - phi_n(i-offset)) / thermal) - 
-            phi_n(i) * B((phi_n(i-offset) - phi_n(i+1-offset)) / thermal) -
-            phi_n(i) * B((phi_n(i-offset) - phi_n(i-1-offset)) / thermal) +
-            phi_n(i-1) * B((phi_n(i-1-offset) - phi_n(i-offset)) / thermal);        
+        r(i) = phi_n(i+1) * B((phi_n(i+1-offset1) - phi_n(i-offset1)) / thermal) - 
+            phi_n(i) * B((phi_n(i-offset1) - phi_n(i+1-offset1)) / thermal) -
+            phi_n(i) * B((phi_n(i-offset1) - phi_n(i-1-offset1)) / thermal) +
+            phi_n(i-1) * B((phi_n(i-1-offset1) - phi_n(i-offset1)) / thermal);        
 
         // continuity w.r.t. ns
         jac(i, i+1) = 
-            B((phi_n(i+1-offset) - phi_n(i-offset)) / thermal);
+            B((phi_n(i+1-offset1) - phi_n(i-offset1)) / thermal);
         jac(i, i) = 
-            - B((phi_n(i-offset) - phi_n(i+1-offset)) / thermal) 
-            - B((phi_n(i-offset) - phi_n(i-1-offset)) / thermal);
+            - B((phi_n(i-offset1) - phi_n(i+1-offset1)) / thermal) 
+            - B((phi_n(i-offset1) - phi_n(i-1-offset1)) / thermal);
         jac(i, i-1) = 
-            B((phi_n(i-1-offset) - phi_n(i-offset)) / thermal);
+            B((phi_n(i-1-offset1) - phi_n(i-offset1)) / thermal);
 
         // continuity w.r.t. phis
-        jac(i, i+1-offset) = 
-            phi_n(i+1)*deriveB((phi_n(i+1-offset) - phi_n(i-offset)) / thermal) +
-            phi_n(i)*deriveB((phi_n(i-offset) - phi_n(i+1-offset)) / thermal);
+        jac(i, i+1-offset1) = 
+            phi_n(i+1)*deriveB((phi_n(i+1-offset1) - phi_n(i-offset1)) / thermal) +
+            phi_n(i)*deriveB((phi_n(i-offset1) - phi_n(i+1-offset1)) / thermal);
         
-        jac(i, i-offset) = -jac(i, i+1-offset) - 
-            phi_n(i)*deriveB((phi_n(i-offset) - phi_n(i-1-offset)) / thermal) -
-            phi_n(i-1)*deriveB((phi_n(i-1-offset) - phi_n(i-offset)) / thermal);
+        jac(i, i-offset1) = -jac(i, i+1-offset1) - 
+            phi_n(i)*deriveB((phi_n(i-offset1) - phi_n(i-1-offset1)) / thermal) -
+            phi_n(i-1)*deriveB((phi_n(i-1-offset1) - phi_n(i-offset1)) / thermal);
         
-        jac(i, i-1-offset) = 
-            phi_n(i)*deriveB((phi_n(i-offset) - phi_n(i-1-offset)) / thermal) +
-            phi_n(i-1)*deriveB((phi_n(i-1-offset) - phi_n(i-offset)) / thermal);
+        jac(i, i-1-offset1) = 
+            phi_n(i)*deriveB((phi_n(i-offset1) - phi_n(i-1-offset1)) / thermal) +
+            phi_n(i-1)*deriveB((phi_n(i-1-offset1) - phi_n(i-offset1)) / thermal);
 
-        jac(i, i+1-offset) /= thermal;
-        jac(i, i-offset) /= thermal;
-        jac(i, i-1-offset) /= thermal;
+        jac(i, i+1-offset1) /= thermal;
+        jac(i, i-offset1) /= thermal;
+        jac(i, i-1-offset1) /= thermal;
     }                        
 }
 
