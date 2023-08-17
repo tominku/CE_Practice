@@ -90,7 +90,7 @@ void r_and_jacobian(vec &r, mat &jac, vec &phi_n_p, double bias)
         r(i) = eps_i_p_0_5*phi_n_p(i+1) -(eps_i_p_0_5 + eps_i_m_0_5)*phi_n_p(i) + eps_i_m_0_5*phi_n_p(i-1);            
 
         double n_i = phi_n_p(offset+i);
-        double p_i = phi_n_p(offset2+i);
+        double p_i = phi_n_p(offset+offset+i);
         if (i < interface1_i)
             r(i) += - coeff*((-dop_left) + n_i - p_i); 
         else if (i == interface1_i)
@@ -110,7 +110,7 @@ void r_and_jacobian(vec &r, mat &jac, vec &phi_n_p, double bias)
         // poisson w.r.t n
         jac(i, i+offset) = - coeff;
         // poisson w.r.t p
-        jac(i, i+offset2) = coeff;
+        jac(i, i+offset+offset) = coeff;
     }
 
     for (int i=(N+1+1); i<2*N; i++)
