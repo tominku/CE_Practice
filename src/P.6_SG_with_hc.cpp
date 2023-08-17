@@ -12,7 +12,7 @@
 // #include <fmt/format.h>
 using namespace arma; 
 
-const int N = 21;
+const int N = 101;
 //int n_int = 1e10;
 //double n_int = 1e16;
 double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
@@ -24,7 +24,8 @@ double thermal = k_B * T / q;
 
 double left_part_width = 1e-8;
 double center_part_width = 4e-8;
-double deltaX = (left_part_width*2 + center_part_width) / (N-1); // in meter  
+double total_width = left_part_width*2 + center_part_width;
+double deltaX = (total_width) / (N-1); // in meter  
 double coeff = deltaX*deltaX*q;
 
 double dop_left = 5e25; // in m^3
@@ -33,7 +34,6 @@ double dop_right = dop_left;
 int interface1_i = round(left_part_width/deltaX) + 1;
 int interface2_i = round((left_part_width + center_part_width)/deltaX) + 1;
 vec one_vector(2*N, fill::ones);
-bool compute_only_n = true;
 
 double B(double x)
 {
@@ -75,8 +75,8 @@ void r_and_jacobian(vec &r, mat &jac, vec &phi_n_p, double bias)
     r(offset+1) = phi_n_p(offset + 1) - dop_left;
     r(offset+N) = phi_n_p(offset + N) - dop_right;
     // from B.C. for hole density
-    double holeDensity1 = n_int*(-phi1/thermal);
-    double holeDensityN = n_int*(-phiN/thermal);
+    double holeDensity1 = n_int*exp(-phi1/thermal);
+    double holeDensityN = n_int*exp(-phiN/thermal);
     r(offset+offset+1) = phi_n_p(offset+offset+1) - holeDensity1;
     r(offset+offset+N) = phi_n_p(offset+offset+N) - holeDensityN;
 
@@ -273,12 +273,16 @@ void solve_for_phi_n(vec &phi_n_p_k, double bias)
         //     break;
     }
     
-    vec eDensities = phi_n_p_k(span(N+1, 2*N));
     vec potential = phi_n_p_k(span(1, N));        
+    vec eDensities = phi_n_p_k(span(N+1, 2*N));    
+    vec holeDensities = phi_n_p_k(span(2*N+1, 3*N));    
 
     eDensities = eDensities / 1e6;
-    std::string n_file_name = fmt::format("DD_eDensity_{:.2f}.csv", 0.0);
-    eDensities.save(n_file_name, csv_ascii);        
+    std::string eDensities_file_name = fmt::format("Poisson_DD_eDensity_{:.2f}.csv", bias);
+    eDensities.save(eDensities_file_name, csv_ascii);        
+    holeDensities = holeDensities / 1e6;
+    std::string holeDensities_file_name = fmt::format("Poisson_DD_holeDensity_{:.2f}.csv", bias);
+    holeDensities.save(holeDensities_file_name, csv_ascii);        
 
     bool do_plot = true;
     if (do_plot)
@@ -286,7 +290,7 @@ void solve_for_phi_n(vec &phi_n_p_k, double bias)
         if (bias == 0 || bias > 0.9)
         {
             plot_args args;
-            args.total_width = 600;
+            args.total_width = total_width;
             args.N = N;        
             args.y_label = "Potential (V)";    
             plot(potential, args);
@@ -294,6 +298,10 @@ void solve_for_phi_n(vec &phi_n_p_k, double bias)
             args.y_label = "eDensity (/cm^3)";  
             args.logscale_y = 10;
             plot(eDensities, args);
+
+            args.y_label = "holeDensity (/cm^3)";  
+            args.logscale_y = 10;
+            plot(holeDensities, args);
 
             args.y_label = "log (delta phi)"; 
             args.logscale_y = -1;
@@ -304,8 +312,7 @@ void solve_for_phi_n(vec &phi_n_p_k, double bias)
 
 
 void compute_I_V_curve()
-{
-    compute_only_n = false;
+{    
     vec phi_n_p_k(3*N + 1, arma::fill::zeros);  
     
     phi_n_p_k(span(1, N)) = thermal * log(dop_left/n_int) * one_vector(span(1, N));
