@@ -25,7 +25,8 @@ double thermal = k_B * T / q;
 double left_part_width = 1e-8;
 double center_part_width = 4e-8;
 double deltaX = (left_part_width*2 + center_part_width) / (N-1); // in meter  
-double coeff = deltaX*deltaX*q;
+//double coeff = deltaX*deltaX*q;
+double coeff = deltaX*deltaX*q / eps_0;
 
 double dop_left = 5e25; // in m^3
 //double dop_center = 2e23; // in m^3
@@ -94,8 +95,10 @@ void r_and_jacobian(vec &r, mat &jac, vec &phi_n, double bias)
     Jacobian = r w.r.t. phi_n
     */     
 
-    double eps_i_p_0_5 = eps_si;
-    double eps_i_m_0_5 = eps_si;                        
+    // double eps_i_p_0_5 = eps_si;
+    // double eps_i_m_0_5 = eps_si;                        
+    double eps_i_p_0_5 = eps_si_rel;
+    double eps_i_m_0_5 = eps_si_rel;                        
 
     for (int i=(1+1); i<N; i++)
     {                
@@ -224,7 +227,8 @@ void solve_for_phi_n(vec &phi_n_k, double bias)
             colvec r_vector_temp = arma::sum(abs(jac_scaled), 1);
             vec r_vector(2*N, fill::zeros);
             for (int p=0; p<2*N; p++)        
-                r_vector(p) = 1 / (r_vector_temp(p) + 1e-10);                
+                r_vector(p) = 1 / (r_vector_temp(p));                
+                //r_vector(p) = 1 / (r_vector_temp(p) + 1e-10);                
             mat R = diagmat(r_vector);              
             //mat R_eye = eye(2*N, 2*N);
             //R = R_eye;
@@ -248,6 +252,10 @@ void solve_for_phi_n(vec &phi_n_k, double bias)
             //printf("[iter %d]   detal_x: %f   residual: %f\n", i, max(abs(delta_phi_i)), max(abs(residual)));  
             //double log_residual = log10(max(abs(r_scaled)));        
             double log_residual = log10(max(abs(r(span(1, 2*N)))));                    
+            
+            std::string n_file_name = fmt::format("residual_{}.csv", k);
+            r.save(n_file_name, csv_ascii);                    
+
             //double log_delta = log10(max(abs(C * delta_phi)));                
             vec F = C * delta_phi_n;
             double log_delta = log10(max(abs(F(span(0, N-1)))));                
@@ -267,7 +275,8 @@ void solve_for_phi_n(vec &phi_n_k, double bias)
     std::string n_file_name = fmt::format("DD_eDensity_{:.2f}.csv", 0.0);
     eDensities.save(n_file_name, csv_ascii);        
 
-    bool do_plot = true;
+    //bool do_plot = true;
+    bool do_plot = false;
     if (do_plot)
     {
         if (bias == 0 || bias > 0.9)
@@ -341,7 +350,8 @@ void save_current_densities(vec &phi_n)
     vec phi = phi_n(span(1, N));
     vec n = phi_n(span(N+1, 2*N));
     vec current_densities(N+2, arma::fill::zeros);
-    for (int i=2; i<=N-2; i++)
+    //for (int i=2; i<=N-2; i++)
+    int i = N-2;
     {            
         double mu = 1417;
         double J_term1 = -q * mu * ((n(i+1) + n(i)) / 2.0) * ((phi(i+1) - phi(i)) / deltaX);
@@ -365,7 +375,24 @@ void compute_I_V_curve()
     phi_n_k(span(1, N)) = thermal * log(dop_left/n_int) * one_vector(span(1, N));
     phi_n_k(span(N+1, 2*N)) = dop_left * one_vector(span(1, N));    
 
-    bool load_initial_solution_from_NP = false;    
+    bool load_initial_solution_from_NP = false;                
+    if (load_initial_solution_from_NP)
+    {
+        double bias = 0;
+        std::string fn_phi_from_NP = fmt::format("NP_phi_{:.2f}.csv", bias); 
+        cout << fn_phi_from_NP << "\n";
+        //printf("fn_phi_from_NP: %s \n", fn_phi_from_NP);     
+        vec phi_from_NP(N, arma::fill::zeros);
+        phi_from_NP.load(fn_phi_from_NP);                        
+        phi_n_k(span(1, N)) = phi_from_NP(span(0, N-1));  
+
+        std::string fn_eDensity_from_NP = fmt::format("NP_eDensity_{:.2f}.csv", bias); 
+        cout << fn_eDensity_from_NP << "\n";
+        //printf("fn_phi_from_NP: %s \n", fn_phi_from_NP);     
+        vec eDensity_from_NP(N, arma::fill::zeros);
+        eDensity_from_NP.load(fn_eDensity_from_NP);                        
+        phi_n_k(span(N+1, 2*N)) = eDensity_from_NP(span(0, N-1));              
+    }    
 
     int num_biases = 0;
     vec current_densities(num_biases+1, arma::fill::zeros);    
