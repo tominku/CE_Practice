@@ -311,13 +311,13 @@ void compute_I_V_curve()
 
     bool load_initial_solution_from_NP = false;    
 
-    int num_biases = 0;    
+    int num_biases = 10;    
     for (int i=0; i<=(num_biases); ++i)
     {
         double bias = i * 0.05;
         printf("Applying Bias: %f V \n", bias);
         solve_for_phi_n(phi_n_k, bias);
-        //save_current_densities(phi_n_k);                        
+        save_current_densities(phi_n_k);                        
         //int j = N-2;
         //vec phi = phi_n_k(span(1, N));
         //vec n = phi_n_k(span(N+1, 2*N)) * 1e-8;

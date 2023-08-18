@@ -12,7 +12,7 @@
 // #include <fmt/format.h>
 using namespace arma; 
 
-const int N = 101;
+const int N = 21;
 //int n_int = 1e10;
 //double n_int = 1e16;
 double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
@@ -28,9 +28,11 @@ double deltaX = (left_part_width*2 + center_part_width) / (N-1); // in meter
 double coeff = deltaX*deltaX*q;
 
 double dop_left = 5e25; // in m^3
-//double dop_center = 2e23; // in m^3
 double dop_center = 2e23; // in m^3
+// double dop_left = 5e22; // in m^3
+// double dop_center = 2e20; // in m^3
 double dop_right = dop_left;
+double dop_avg = (dop_left + dop_center) / 2.0;
 int interface1_i = round(left_part_width/deltaX) + 1;
 int interface2_i = round((left_part_width + center_part_width)/deltaX) + 1;
 vec one_vector(2*N, fill::ones);
@@ -39,18 +41,12 @@ bool compute_only_n = true;
 double B(double x)
 {
     double result = 0.0;
-    if (abs(x) < 0.0252)
-    {
-        result = 1.0 - x/2.0 + pow(x, 2.0)/12.0 * (1.0 - pow(x, 2.0)/60.0 * (1.0 - pow(x, 2.0)/42.0));
-    }
+    if (abs(x) < 0.0252)    
+        result = 1.0 - x/2.0 + pow(x, 2.0)/12.0 * (1.0 - pow(x, 2.0)/60.0 * (1.0 - pow(x, 2.0)/42.0));    
     else if (abs(x) < 0.15)
-    {
-        result = 1.0 - x/2.0 + pow(x, 2.0)/12.0 * (1.0 - pow(x, 2.0)/60.0 * (1.0 - pow(x, 2.0)/42.0 * (1 - pow(x, 2.0)/40 * (1 - 0.02525225525252525*pow(x, 2.0)))));
-    }
+        result = 1.0 - x/2.0 + pow(x, 2.0)/12.0 * (1.0 - pow(x, 2.0)/60.0 * (1.0 - pow(x, 2.0)/42.0 * (1 - pow(x, 2.0)/40 * (1 - 0.02525252525252525252525*pow(x, 2.0)))));
     else
-    {     
         result = x / (exp(x) - 1);
-    }
     return result;
 }
 
@@ -58,17 +54,11 @@ double deriveB(double x)
 {
     double result = 0.0;
     if (abs(x) < 0.0252)
-    {
         result = -0.5 + x/6.0 * (1.0 - pow(x, 2.0)/30.0 * (1.0 - pow(x, 2.0)/28.0));
-    }
     else if (abs(x) < 0.15)
-    {
-        result = -0.5 + x/6.0 * (1.0 - pow(x, 2.0)/30.0 * (1.0 - pow(x, 2.0)/28.0 * (1 - pow(x, 2.0)/30 * (1 - 0.0315656565656565656565*pow(x, 2.0)))));
-    }
+        result = -0.5 + x/6.0 * (1.0 - pow(x, 2.0)/30.0 * (1.0 - pow(x, 2.0)/28.0 * (1 - pow(x, 2.0)/30 * (1 - 0.03156565656565656565657*pow(x, 2.0)))));
     else
-    {        
         result = 1.0/(exp(x)-1) - B(x)*(1.0 / (exp(x) - 1) + 1);
-    }
     return result;
 }
 
@@ -136,7 +126,9 @@ void r_and_jacobian(vec &r, mat &jac, vec &phi_n, double bias)
         r(i) = phi_n(i+1) * B((phi_n(i+1-offset) - phi_n(i-offset)) / thermal) - 
             phi_n(i) * B((phi_n(i-offset) - phi_n(i+1-offset)) / thermal) -
             phi_n(i) * B((phi_n(i-offset) - phi_n(i-1-offset)) / thermal) +
-            phi_n(i-1) * B((phi_n(i-1-offset) - phi_n(i-offset)) / thermal);        
+            phi_n(i-1) * B((phi_n(i-1-offset) - phi_n(i-offset)) / thermal);  
+
+        r(i) /= dop_avg;      
 
         // continuity w.r.t. ns
         jac(i, i+1) = 
@@ -146,6 +138,10 @@ void r_and_jacobian(vec &r, mat &jac, vec &phi_n, double bias)
             - B((phi_n(i-offset) - phi_n(i-1-offset)) / thermal);
         jac(i, i-1) = 
             B((phi_n(i-1-offset) - phi_n(i-offset)) / thermal);
+
+        jac(i, i+1) /= dop_avg;             
+        jac(i, i) /= dop_avg;             
+        jac(i, i-1) /= dop_avg;             
 
         // continuity w.r.t. phis
         jac(i, i+1-offset) = 
@@ -160,9 +156,9 @@ void r_and_jacobian(vec &r, mat &jac, vec &phi_n, double bias)
             phi_n(i)*deriveB((phi_n(i-offset) - phi_n(i-1-offset)) / thermal) +
             phi_n(i-1)*deriveB((phi_n(i-1-offset) - phi_n(i-offset)) / thermal);
 
-        jac(i, i+1-offset) /= thermal;
-        jac(i, i-offset) /= thermal;
-        jac(i, i-1-offset) /= thermal;
+        jac(i, i+1-offset) /= thermal*dop_avg;
+        jac(i, i-offset) /= thermal*dop_avg;
+        jac(i, i-1-offset) /= thermal*dop_avg;
     }                        
 }
 

@@ -12,7 +12,7 @@
 // #include <fmt/format.h>
 using namespace arma; 
 
-const int N = 101;
+const int N = 21;
 //int n_int = 1e10;
 //double n_int = 1e16;
 double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
@@ -27,10 +27,10 @@ double center_part_width = 4e-8;
 double deltaX = (left_part_width*2 + center_part_width) / (N-1); // in meter  
 //double coeff = deltaX*deltaX*q;
 double coeff = deltaX*deltaX*q / eps_0;
-
 double dop_left = 5e25; // in m^3
 //double dop_center = 2e23; // in m^3
 double dop_center = 2e23; // in m^3
+double dop_avg = (dop_left + dop_center) / 2.0;
 double dop_right = dop_left;
 int interface1_i = round(left_part_width/deltaX) + 1;
 int interface2_i = round((left_part_width + center_part_width)/deltaX) + 1;
@@ -40,18 +40,12 @@ bool compute_only_n = true;
 double B(double x)
 {
     double result = 0.0;
-    if (abs(x) < 0.0252)
-    {
-        result = 1.0 - x/2.0 + pow(x, 2.0)/12.0 * (1.0 - pow(x, 2.0)/60.0 * (1.0 - pow(x, 2.0)/42.0));
-    }
+    if (abs(x) < 0.0252)    
+        result = 1.0 - x/2.0 + pow(x, 2.0)/12.0 * (1.0 - pow(x, 2.0)/60.0 * (1.0 - pow(x, 2.0)/42.0));    
     else if (abs(x) < 0.15)
-    {
-        result = 1.0 - x/2.0 + pow(x, 2.0)/12.0 * (1.0 - pow(x, 2.0)/60.0 * (1.0 - pow(x, 2.0)/42.0 * (1 - pow(x, 2.0)/40 * (1 - 0.02525225525252525*pow(x, 2.0)))));
-    }
+        result = 1.0 - x/2.0 + pow(x, 2.0)/12.0 * (1.0 - pow(x, 2.0)/60.0 * (1.0 - pow(x, 2.0)/42.0 * (1 - pow(x, 2.0)/40 * (1 - 0.02525252525252525252525*pow(x, 2.0)))));
     else
-    {     
         result = x / (exp(x) - 1);
-    }
     return result;
 }
 
@@ -59,17 +53,11 @@ double deriveB(double x)
 {
     double result = 0.0;
     if (abs(x) < 0.0252)
-    {
         result = -0.5 + x/6.0 * (1.0 - pow(x, 2.0)/30.0 * (1.0 - pow(x, 2.0)/28.0));
-    }
     else if (abs(x) < 0.15)
-    {
-        result = -0.5 + x/6.0 * (1.0 - pow(x, 2.0)/30.0 * (1.0 - pow(x, 2.0)/28.0 * (1 - pow(x, 2.0)/30 * (1 - 0.0315656565656565656565*pow(x, 2.0)))));
-    }
+        result = -0.5 + x/6.0 * (1.0 - pow(x, 2.0)/30.0 * (1.0 - pow(x, 2.0)/28.0 * (1 - pow(x, 2.0)/30 * (1 - 0.03156565656565656565657*pow(x, 2.0)))));
     else
-    {        
         result = 1.0/(exp(x)-1) - B(x)*(1.0 / (exp(x) - 1) + 1);
-    }
     return result;
 }
 
@@ -141,6 +129,7 @@ void r_and_jacobian(vec &r, mat &jac, vec &phi_n, double bias)
             phi_n(i) * B((phi_n(i-offset) - phi_n(i-1-offset)) / thermal) +
             phi_n(i-1) * B((phi_n(i-1-offset) - phi_n(i-offset)) / thermal);        
 
+        r(i) /= dop_avg;
         // continuity w.r.t. ns
         jac(i, i+1) = 
             B((phi_n(i+1-offset) - phi_n(i-offset)) / thermal);
@@ -149,6 +138,10 @@ void r_and_jacobian(vec &r, mat &jac, vec &phi_n, double bias)
             - B((phi_n(i-offset) - phi_n(i-1-offset)) / thermal);
         jac(i, i-1) = 
             B((phi_n(i-1-offset) - phi_n(i-offset)) / thermal);
+
+        jac(i, i+1) /= dop_avg; 
+        jac(i, i) /= dop_avg;
+        jac(i, i-1) /= dop_avg;            
 
         // continuity w.r.t. phis
         jac(i, i+1-offset) = 
@@ -163,9 +156,9 @@ void r_and_jacobian(vec &r, mat &jac, vec &phi_n, double bias)
             phi_n(i)*deriveB((phi_n(i-offset) - phi_n(i-1-offset)) / thermal) +
             phi_n(i-1)*deriveB((phi_n(i-1-offset) - phi_n(i-offset)) / thermal);
 
-        jac(i, i+1-offset) /= thermal;
-        jac(i, i-offset) /= thermal;
-        jac(i, i-1-offset) /= thermal;
+        jac(i, i+1-offset) /= thermal*dop_avg;
+        jac(i, i-offset) /= thermal*dop_avg;
+        jac(i, i-1-offset) /= thermal*dop_avg;
     }                        
 }
 
@@ -275,8 +268,8 @@ void solve_for_phi_n(vec &phi_n_k, double bias)
     std::string n_file_name = fmt::format("DD_eDensity_{:.2f}.csv", 0.0);
     eDensities.save(n_file_name, csv_ascii);        
 
-    //bool do_plot = true;
-    bool do_plot = false;
+    bool do_plot = true;
+    //bool do_plot = false;
     if (do_plot)
     {
         if (bias == 0 || bias > 0.9)
@@ -345,13 +338,29 @@ void compute_DD_n_from_NP_solution()
     }            
 }
 
+double compute_current_density(vec &phi_n)
+{
+    vec phi = phi_n(span(1, N));
+    vec n = phi_n(span(N+1, 2*N));    
+    //for (int i=2; i<=N-2; i++)    
+    int i = N-2;    
+    double mu = 1417;
+    double J_term1 = -q * mu * ((n(i+1) + n(i)) / 2.0) * ((phi(i+1) - phi(i)) / deltaX);
+    double J_term2 = q * mu * thermal*(n(i+1) - n(i))/deltaX;
+    double J_SG = n(i+1)*B((phi(i+1) - phi(i)) / thermal) - n(i)*B((phi(i) - phi(i+1)) / thermal);
+    //double J = q * mu * (((n(j+1) + n(j)) / 2.0) * ((phi(j+1) - phi(j)) / deltaX) - thermal*(n(j+1) - n(j))/deltaX);
+    double J = J_term1 + J_term2;
+    J *= 1e-8;        
+    printf("Result Current Density J: %f, term1: %f, term2: %f, J_SG: %f \n", J, J_term1, J_term2, J_SG);    
+    return J;
+}
+
 void save_current_densities(vec &phi_n)
 {
     vec phi = phi_n(span(1, N));
     vec n = phi_n(span(N+1, 2*N));
     vec current_densities(N+2, arma::fill::zeros);
-    //for (int i=2; i<=N-2; i++)
-    int i = N-2;
+    for (int i=2; i<=N-2; i++)
     {            
         double mu = 1417;
         double J_term1 = -q * mu * ((n(i+1) + n(i)) / 2.0) * ((phi(i+1) - phi(i)) / deltaX);
@@ -363,9 +372,8 @@ void save_current_densities(vec &phi_n)
         current_densities(i) = J;
         printf("Result Current Density J: %f, term1: %f, term2: %f, J_SG: %f \n", J, J_term1, J_term2, J_SG);
     }
-    current_densities.save("current_densities.txt", arma::raw_ascii);
+    //current_densities.save("current_densities.txt", arma::raw_ascii);
 }
-
 
 void compute_I_V_curve()
 {
@@ -394,6 +402,7 @@ void compute_I_V_curve()
         phi_n_k(span(N+1, 2*N)) = eDensity_from_NP(span(0, N-1));              
     }    
 
+    //int num_biases = 10;
     int num_biases = 0;
     vec current_densities(num_biases+1, arma::fill::zeros);    
     for (int i=0; i<=(num_biases); ++i)
@@ -401,8 +410,11 @@ void compute_I_V_curve()
         double bias = i * 0.05;
         printf("Applying Bias: %f V \n", bias);
         solve_for_phi_n(phi_n_k, bias);
+        double J = compute_current_density(phi_n_k);
+        current_densities[i] = J;
         save_current_densities(phi_n_k);
     }
+    current_densities.save("current_densities_SG.txt", arma::raw_ascii);
 }
 
 void save_B(std::string file_name)

@@ -12,7 +12,7 @@
 // #include <fmt/format.h>
 using namespace arma; 
 
-const int N = 101;
+const int N = 201;
 //int n_int = 1e10;
 //double n_int = 1e16;
 double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
@@ -30,6 +30,7 @@ double coeff = deltaX*deltaX*q;
 
 double dop_left = 5e25; // in m^3
 double dop_center = 2e23; // in m^3
+double dop_avg = (dop_left + dop_center) / 2.0;
 double dop_right = dop_left;
 int interface1_i = round(left_part_width/deltaX) + 1;
 int interface2_i = round((left_part_width + center_part_width)/deltaX) + 1;
@@ -41,7 +42,7 @@ double B(double x)
     if (abs(x) < 0.0252)    
         result = 1.0 - x/2.0 + pow(x, 2.0)/12.0 * (1.0 - pow(x, 2.0)/60.0 * (1.0 - pow(x, 2.0)/42.0));    
     else if (abs(x) < 0.15)
-        result = 1.0 - x/2.0 + pow(x, 2.0)/12.0 * (1.0 - pow(x, 2.0)/60.0 * (1.0 - pow(x, 2.0)/42.0 * (1 - pow(x, 2.0)/40 * (1 - 0.02525225525252525*pow(x, 2.0)))));
+        result = 1.0 - x/2.0 + pow(x, 2.0)/12.0 * (1.0 - pow(x, 2.0)/60.0 * (1.0 - pow(x, 2.0)/42.0 * (1 - pow(x, 2.0)/40 * (1 - 0.02525252525252525252525*pow(x, 2.0)))));
     else
         result = x / (exp(x) - 1);
     return result;
@@ -53,7 +54,7 @@ double deriveB(double x)
     if (abs(x) < 0.0252)
         result = -0.5 + x/6.0 * (1.0 - pow(x, 2.0)/30.0 * (1.0 - pow(x, 2.0)/28.0));
     else if (abs(x) < 0.15)
-        result = -0.5 + x/6.0 * (1.0 - pow(x, 2.0)/30.0 * (1.0 - pow(x, 2.0)/28.0 * (1 - pow(x, 2.0)/30 * (1 - 0.0315656565656565656565*pow(x, 2.0)))));
+        result = -0.5 + x/6.0 * (1.0 - pow(x, 2.0)/30.0 * (1.0 - pow(x, 2.0)/28.0 * (1 - pow(x, 2.0)/30 * (1 - 0.03156565656565656565657*pow(x, 2.0)))));
     else
         result = 1.0/(exp(x)-1) - B(x)*(1.0 / (exp(x) - 1) + 1);
     return result;
@@ -131,6 +132,8 @@ void r_and_jacobian(vec &r, mat &jac, vec &phi_n_p, double bias)
             phi_n_p(i) * B((phi_n_p(i-offset) - phi_n_p(i+1-offset)) / thermal) -
             phi_n_p(i) * B((phi_n_p(i-offset) - phi_n_p(i-1-offset)) / thermal) +
             phi_n_p(i-1) * B((phi_n_p(i-1-offset) - phi_n_p(i-offset)) / thermal);        
+        
+        r(i) /= dop_avg;
 
         // continuity w.r.t. ns
         jac(i, i+1) = 
@@ -140,6 +143,10 @@ void r_and_jacobian(vec &r, mat &jac, vec &phi_n_p, double bias)
             - B((phi_n_p(i-offset) - phi_n_p(i-1-offset)) / thermal);
         jac(i, i-1) = 
             B((phi_n_p(i-1-offset) - phi_n_p(i-offset)) / thermal);
+
+        jac(i, i+1) /= dop_avg;             
+        jac(i, i) /= dop_avg;             
+        jac(i, i-1) /= dop_avg;             
 
         // continuity w.r.t. phis
         jac(i, i+1-offset) = 
@@ -154,9 +161,9 @@ void r_and_jacobian(vec &r, mat &jac, vec &phi_n_p, double bias)
             phi_n_p(i)*deriveB((phi_n_p(i-offset) - phi_n_p(i-1-offset)) / thermal) +
             phi_n_p(i-1)*deriveB((phi_n_p(i-1-offset) - phi_n_p(i-offset)) / thermal);
 
-        jac(i, i+1-offset) /= thermal;
-        jac(i, i-offset) /= thermal;
-        jac(i, i-1-offset) /= thermal;
+        jac(i, i+1-offset) /= thermal*dop_avg;
+        jac(i, i-offset) /= thermal*dop_avg;
+        jac(i, i-1-offset) /= thermal*dop_avg;
 
         // residual for hole continuity        
         r(i+offset) = -phi_n_p(i+1+offset) * B(-(phi_n_p(i+1-offset) - phi_n_p(i-offset)) / thermal) + 
@@ -261,7 +268,8 @@ void solve_for_phi_n(vec &phi_n_p_k, double bias)
         //jac.print("jac");
         //if (i % 1 == 0)
         //printf("[iter %d]   detal_x: %f   residual: %f\n", i, max(abs(delta_phi_i)), max(abs(residual)));  
-        double log_residual = log10(max(abs(r_scaled)));        
+        //double log_residual = log10(max(abs(r_scaled)));        
+        double log_residual = log10(max(abs(r(span(1, 3*N)))));        
         //double log_delta = log10(max(abs(C * delta_phi)));                
         vec F = C * delta_phi_n;
         double log_delta = log10(max(abs(F(span(0, N-1)))));                
@@ -328,7 +336,8 @@ void compute_I_V_curve()
         printf("Applying Bias: %f V \n", bias);
         solve_for_phi_n(phi_n_p_k, bias);
 
-        int j = 25;
+        int j = N-2;
+        //int j = 34;
         vec phi = phi_n_p_k(span(1, N));
         vec n = phi_n_p_k(span(N+1, 2*N)) * 1e-8;
         double mu = 1417;
@@ -336,7 +345,7 @@ void compute_I_V_curve()
         current_densities(i) = J;
         printf("Result Current Density J: %f \n", J);
     }
-    current_densities.save("current_densities.txt", arma::raw_ascii);
+    current_densities.save("current_densities_SG_with_hc.txt", arma::raw_ascii);
 }
 
 void save_B(std::string file_name)
