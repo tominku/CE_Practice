@@ -12,7 +12,7 @@
 // #include <fmt/format.h>
 using namespace arma; 
 
-const int N = 21;
+const int N = 601;
 //int n_int = 1e10;
 //double n_int = 1e16;
 double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
@@ -22,13 +22,13 @@ double T = 300;
 bool use_normalizer = false;
 double thermal = k_B * T / q;
 
-double left_part_width = 1e-8;
-double center_part_width = 4e-8;
+double left_part_width = 1e-7;
+double center_part_width = 4e-7;
 double deltaX = (left_part_width*2 + center_part_width) / (N-1); // in meter  
-double coeff = deltaX*deltaX*q;
+double coeff = deltaX*deltaX*q / eps_0;
 
-double dop_left = 5e25; // in m^3
-double dop_center = 2e23; // in m^3
+double dop_left = 5e23; // in m^3
+double dop_center = 2e21; // in m^3
 // double dop_left = 5e22; // in m^3
 // double dop_center = 2e20; // in m^3
 double dop_right = dop_left;
@@ -41,23 +41,30 @@ bool compute_only_n = true;
 double B(double x)
 {
     double result = 0.0;
-    if (abs(x) < 0.0252)    
+    
+    if (abs(x) < 0.0252)   
+        // Bern_P1 = ( 1.0-(x1)/2.0+(x1)^2/12.0*(1.0-(x1)^2/60.0*(1.0-(x1)^2/42.0)) ) ;        
         result = 1.0 - x/2.0 + pow(x, 2.0)/12.0 * (1.0 - pow(x, 2.0)/60.0 * (1.0 - pow(x, 2.0)/42.0));    
     else if (abs(x) < 0.15)
+        // Bern_P1 = ( 1.0-(x1)/2.0+(x1)^2/12.0*(1.0-(x1)^2/60.0*(1.0-(x1)^2/42.0*(1-(x1)^2/40*(1-0.02525252525252525252525*(x1)^2)))));
         result = 1.0 - x/2.0 + pow(x, 2.0)/12.0 * (1.0 - pow(x, 2.0)/60.0 * (1.0 - pow(x, 2.0)/42.0 * (1 - pow(x, 2.0)/40 * (1 - 0.02525252525252525252525*pow(x, 2.0)))));
     else
         result = x / (exp(x) - 1);
     return result;
 }
 
+
 double deriveB(double x)
 {
     double result = 0.0;
     if (abs(x) < 0.0252)
+        // Deri_Bern_P1_phi1 = (-0.5 + (x1)/6.0*(1.0-(x1)^2/30.0*(1.0-(x1)^2/28.0)) )/thermal;
         result = -0.5 + x/6.0 * (1.0 - pow(x, 2.0)/30.0 * (1.0 - pow(x, 2.0)/28.0));
     else if (abs(x) < 0.15)
+        // Deri_Bern_P1_phi1 = (-0.5 + (x1)/6.0*(1.0-(x1)^2/30.0*(1.0-(x1)^2/28.0*(1-(x1)^2/30*(1-0.03156565656565656565657*(x1)^2)))))/thermal;
         result = -0.5 + x/6.0 * (1.0 - pow(x, 2.0)/30.0 * (1.0 - pow(x, 2.0)/28.0 * (1 - pow(x, 2.0)/30 * (1 - 0.03156565656565656565657*pow(x, 2.0)))));
     else
+        // Deri_Bern_P1_phi1=(1/(exp(x1)-1)-Bern_P1*(1/(exp(x1)-1)+1))/thermal;
         result = 1.0/(exp(x)-1) - B(x)*(1.0 / (exp(x) - 1) + 1);
     return result;
 }
@@ -84,8 +91,8 @@ void r_and_jacobian(vec &r, mat &jac, vec &phi_n, double bias)
     Jacobian = r w.r.t. phi_n
     */     
 
-    double eps_i_p_0_5 = eps_si;
-    double eps_i_m_0_5 = eps_si;                        
+    double eps_i_p_0_5 = eps_si_rel;
+    double eps_i_m_0_5 = eps_si_rel;                        
 
     for (int i=(1+1); i<N; i++)
     {                
@@ -97,10 +104,12 @@ void r_and_jacobian(vec &r, mat &jac, vec &phi_n, double bias)
             r(i) += - coeff*((-dop_left) + n_i); 
         else if (i == interface1_i)
             r(i) += - coeff*(0.5*(-dop_left) + 0.5*(-dop_center) + n_i); 
-        else if (i > interface1_i & i < interface2_i)
+            //r(i) += - coeff*(1.0*(-dop_left) + n_i); 
+        else if (i > interface1_i && i < interface2_i)
             r(i) += - coeff*((-dop_center) + n_i); 
         else if (i == interface2_i)
             r(i) += - coeff*(0.5*(-dop_center) + 0.5*(-dop_right) + n_i); 
+            //r(i) += - coeff*(1.0*(-dop_right) + n_i); 
         else if (i > interface2_i)
             r(i) += - coeff*((-dop_right) + n_i);             
 
@@ -260,8 +269,11 @@ void solve_for_phi_n(vec &phi_n_k, double bias)
     vec potential = phi_n_k(span(1, N));        
 
     eDensities = eDensities / 1e6;
-    std::string n_file_name = fmt::format("DD_eDensity_{:.2f}.csv", 0.0);
+    std::string n_file_name = fmt::format("SG_eDensity_{:.2f}.csv", 0.0);
     eDensities.save(n_file_name, csv_ascii);        
+    
+    std::string phi_file_name = fmt::format("SG_phi_{:.2f}.csv", 0.0);
+    potential.save(phi_file_name, csv_ascii);        
 
     bool do_plot = true;
     if (do_plot)
@@ -347,9 +359,36 @@ void save_current_densities(vec &phi_n)
         double J = J_term1 + J_term2;
         J *= 1e-8;
         current_densities(i) = J;
-        printf("Result Current Density J: %f, term1: %f, term2: %f, J_SG: %f \n", J, J_term1, J_term2, J_SG);
+        //printf("Result Current Density J: %f, term1: %f, term2: %f, J_SG: %f \n", J, J_term1, J_term2, J_SG);
     }
     current_densities.save("current_densities.txt", arma::raw_ascii);
+}
+
+double compute_current_density(vec &phi_n)
+{
+    vec phi = phi_n(span(1, N));
+    vec n = phi_n(span(N+1, 2*N));    
+    vec js(N+1, arma::fill::zeros);
+    vec js_sg(N+1, arma::fill::zeros);
+    double J = 0;
+    for (int i=2; i<=N-2; i++)    
+    {        
+        double mu = 1417;
+        double J_term1 = -q * mu * ((n(i+1) + n(i)) / 2.0) * ((phi(i+1) - phi(i)) / deltaX);
+        double J_term2 = q * mu * thermal*(n(i+1) - n(i))/deltaX;
+        double J_SG = n(i+1)*B((phi(i+1) - phi(i)) / thermal) - n(i)*B((phi(i) - phi(i+1)) / thermal);
+        //double J = q * mu * (((n(j+1) + n(j)) / 2.0) * ((phi(j+1) - phi(j)) / deltaX) - thermal*(n(j+1) - n(j))/deltaX);
+        J_SG *= q * thermal * mu / deltaX;
+        double J = J_term1 + J_term2;
+        J *= 1e-8; 
+        js(i) = J;        
+        J_SG *= 1e-8;      
+        js_sg(i) = J_SG;
+        printf("Result Current Density J: %f, term1: %f, term2: %f, J_SG: %f \n", J, J_term1, J_term2, J_SG);    
+    }    
+    js.save("js.csv", arma::csv_ascii);
+    js_sg.save("js_sg.csv", arma::csv_ascii);
+    return J;
 }
 
 
@@ -358,7 +397,9 @@ void compute_I_V_curve()
     compute_only_n = false;
     vec phi_n_k(2*N + 1, arma::fill::zeros);  
     
-    phi_n_k(span(1, N)) = thermal * log(dop_left/n_int) * one_vector(span(1, N));
+    phi_n_k(span(1, interface1_i)) = thermal * log(dop_left/n_int) * one_vector(span(1, interface1_i));
+    phi_n_k(span(interface1_i+1, interface2_i-1)) = thermal * log(dop_center/n_int) * one_vector(span(interface1_i+1, interface2_i-1));
+    phi_n_k(span(interface2_i, N)) = thermal * log(dop_right/n_int) * one_vector(span(interface2_i, N));
     phi_n_k(span(N+1, 2*N)) = dop_left * one_vector(span(1, N));    
 
     bool load_initial_solution_from_NP = false;    
@@ -370,8 +411,17 @@ void compute_I_V_curve()
         double bias = i * 0.05;
         printf("Applying Bias: %f V \n", bias);
         solve_for_phi_n(phi_n_k, bias);
-        save_current_densities(phi_n_k);
+        //save_current_densities(phi_n_k);
+
+        vec eDensities = phi_n_k(span(N+1, 2*N));
+        vec potential = phi_n_k(span(1, N));        
+        //eDensities = eDensities / 1e6;
+        //std::string n_file_name = fmt::format("DD_SG_highdop_eDensity_{:.2f}_N_{}.csv", bias, N);
+        //eDensities.save(n_file_name, csv_ascii);        
+        double J = compute_current_density(phi_n_k);
+        current_densities(i) = J;
     }
+    //current_densities.save("current_densities_SG.txt", arma::raw_ascii);
 }
 
 void save_B(std::string file_name)

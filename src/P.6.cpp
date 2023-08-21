@@ -69,11 +69,13 @@ void r_and_jacobian(vec &r, mat &jac, vec &phi_n, double bias)
         if (i < interface1_i)
             r(i) += - coeff*((-dop_left) + n_i); 
         else if (i == interface1_i)
-            r(i) += - coeff*(0.5*(-dop_left) + 0.5*(-dop_center) + n_i); 
-        else if (i > interface1_i & i < interface2_i)
+            //r(i) += - coeff*(0.5*(-dop_left) + 0.5*(-dop_center) + n_i); 
+            r(i) += - coeff*(1.0*(-dop_left) + n_i); 
+        else if (i > interface1_i && i < interface2_i)
             r(i) += - coeff*((-dop_center) + n_i); 
         else if (i == interface2_i)
-            r(i) += - coeff*(0.5*(-dop_center) + 0.5*(-dop_right) + n_i); 
+            //r(i) += - coeff*(0.5*(-dop_center) + 0.5*(-dop_right) + n_i); 
+            r(i) += - coeff*(1.0*(-dop_right) + n_i); 
         else if (i > interface2_i)
             r(i) += - coeff*((-dop_right) + n_i);             
 
@@ -211,6 +213,9 @@ void solve_for_phi_n(vec &phi_n_k, double bias)
     std::string n_file_name = fmt::format("DD_eDensity_{:.2f}.csv", 0.0);
     eDensities.save(n_file_name, csv_ascii);        
 
+    std::string phi_file_name = fmt::format("DD_phi_{:.2f}.csv", 0.0);
+    potential.save(phi_file_name, csv_ascii);        
+
     bool do_plot = true;
     if (do_plot)
     {
@@ -311,7 +316,7 @@ void compute_I_V_curve()
 
     bool load_initial_solution_from_NP = false;    
 
-    int num_biases = 10;    
+    int num_biases = 0;    
     for (int i=0; i<=(num_biases); ++i)
     {
         double bias = i * 0.05;

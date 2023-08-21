@@ -64,9 +64,10 @@ void r_and_jacobian(vec &r, mat &jac, vec &phi, double boundary_potential)
         {            
             eps_i_m_0_5 = eps_si;
             eps_i_p_0_5 = eps_si;
-            dop_term = 0.5*(dop_left) + 0.5*(dop_center);                                  
+            //dop_term = 0.5*(dop_left) + 0.5*(dop_center);                                  
+            dop_term = dop_left;
         }
-        else if (i > interface1_i & i < interface2_i)
+        else if (i > interface1_i && i < interface2_i)
         {
             eps_i_m_0_5 = eps_si;
             eps_i_p_0_5 = eps_si;
@@ -76,7 +77,8 @@ void r_and_jacobian(vec &r, mat &jac, vec &phi, double boundary_potential)
         {
             eps_i_m_0_5 = eps_si;
             eps_i_p_0_5 = eps_si;
-            dop_term = 0.5*(dop_center) + 0.5*(dop_right);                        
+            //dop_term = 0.5*(dop_center) + 0.5*(dop_right);                        
+            dop_term = dop_right;                        
         }
         else if (i > interface2_i)
         {
@@ -154,6 +156,8 @@ vec solve_phi(double boundary_potential, vec &phi_0)
 int main() {    
 
     double start_potential = 0;    
+
+    printf("######### interface1_i: %d, interface2_i: %d", interface1_i, interface2_i);
 
     vec one_vector(N+1, arma::fill::ones);
     vec phi_0(N+1, arma::fill::zeros);

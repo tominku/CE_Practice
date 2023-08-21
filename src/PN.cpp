@@ -12,7 +12,7 @@
 // #include <fmt/format.h>
 using namespace arma; 
 
-const int N = 101;
+const int N = 301;
 //int n_int = 1e10;
 //double n_int = 1e16;
 double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
