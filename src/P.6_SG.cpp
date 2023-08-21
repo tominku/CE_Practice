@@ -404,7 +404,7 @@ void compute_I_V_curve()
 
     bool load_initial_solution_from_NP = false;    
 
-    int num_biases = 0;
+    int num_biases = 11;
     vec current_densities(num_biases+1, arma::fill::zeros);    
     for (int i=0; i<=(num_biases); ++i)
     {
