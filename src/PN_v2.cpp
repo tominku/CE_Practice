@@ -22,13 +22,13 @@ double T = 300;
 bool use_normalizer = false;
 double thermal = k_B * T / q;
 
-double left_part_width = 10e-7;
+double left_part_width = 5e-7;
 double total_width = left_part_width*2;
 double deltaX = (total_width) / (N-1); // in meter  
 double coeff = deltaX*deltaX*q;
 
-double dop_left = 1e22; // in m^3, n-type
-double dop_right = 1e22; // p-type
+double dop_left = 1e23; // in m^3, n-type
+double dop_right = 1e23; // p-type
 int interface1_i = round(left_part_width/deltaX) + 1;
 vec one_vector(2*N, fill::ones);
 
