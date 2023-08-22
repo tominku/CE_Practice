@@ -22,13 +22,13 @@ double T = 300;
 bool use_normalizer = false;
 double thermal = k_B * T / q;
 
-double left_part_width = 2e-7;
+double left_part_width = 10e-7;
 double total_width = left_part_width*2;
 double deltaX = (total_width) / (N-1); // in meter  
 double coeff = deltaX*deltaX*q;
 
-double dop_left = 1e23; // in m^3, n-type
-double dop_right = 1e23; // p-type
+double dop_left = 1e22; // in m^3, n-type
+double dop_right = 1e22; // p-type
 int interface1_i = round(left_part_width/deltaX) + 1;
 vec one_vector(2*N, fill::ones);
 
@@ -289,11 +289,14 @@ void solve_for_phi_n(vec &phi_n_p_k, double bias)
     vec holeDensities = phi_n_p_k(span(2*N+1, 3*N));    
 
     eDensities = eDensities / 1e6;
-    std::string eDensities_file_name = fmt::format("Poisson_DD_eDensity_{:.2f}.csv", bias);
+    std::string eDensities_file_name = fmt::format("PN_eDensity_{:.2f}.csv", bias);
     eDensities.save(eDensities_file_name, csv_ascii);        
     holeDensities = holeDensities / 1e6;
-    std::string holeDensities_file_name = fmt::format("Poisson_DD_holeDensity_{:.2f}.csv", bias);
+    std::string holeDensities_file_name = fmt::format("PN_holeDensity_{:.2f}.csv", bias);
     holeDensities.save(holeDensities_file_name, csv_ascii);
+
+    std::string phi_file_name = fmt::format("PN_phi_{:.2f}.csv", bias);
+    potential.save(phi_file_name, csv_ascii);
 
     double phi_bi = thermal * log(dop_left*dop_right/pow(n_int, 2));
     printf("phi_bi: %f \n", phi_bi);  
