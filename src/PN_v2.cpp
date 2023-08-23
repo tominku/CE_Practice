@@ -12,23 +12,24 @@
 // #include <fmt/format.h>
 using namespace arma; 
 
-const int N = 101;
+const int N = 301;
 //int n_int = 1e10;
 //double n_int = 1e16;
-double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
+//double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
+double n_int = 1.0*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
 double T = 300;    
 // double total_width = 6.0;    
 // double t_ox = 0.5;
 bool use_normalizer = false;
 double thermal = k_B * T / q;
 
-double left_part_width = 5e-7;
+double left_part_width = 3e-7;
 double total_width = left_part_width*2;
 double deltaX = (total_width) / (N-1); // in meter  
 double coeff = deltaX*deltaX*q;
 
-double dop_left = 1e23; // in m^3, n-type
-double dop_right = -1e23; // p-type
+double dop_left = 5e23; // in m^3, n-type
+double dop_right = -2e23; // p-type
 int interface_i = round(left_part_width/deltaX) + 1;
 vec one_vector(3*N+1, fill::ones);
 
@@ -295,8 +296,8 @@ void solve_for_phi_n(vec &phi_n_p_k, double bias)
     std::string phi_file_name = fmt::format("PN_phi_{:.2f}.csv", bias);
     potential.save(phi_file_name, csv_ascii);
 
-    double phi_bi = thermal * log(dop_left*dop_right/pow(n_int, 2));
-    printf("phi_bi: %f \n", phi_bi);  
+    // double phi_bi = thermal * log(dop_left*dop_right/pow(n_int, 2));
+    // printf("phi_bi: %f \n", phi_bi);  
 
     bool do_plot = true;
     if (do_plot)
@@ -328,23 +329,31 @@ double get_current_densities(vec &phi_n_p)
 {
     vec phi = phi_n_p(span(1, N));
     vec n = phi_n_p(span(N+1, 2*N));
-    vec current_densities(N+2, arma::fill::zeros);
+    vec p = phi_n_p(span(2*N+1, 3*N));
+    //vec current_densities(N+2, arma::fill::zeros);
     double J_SG = 0;
-    //for (int i=2; i<=N-2; i++)
-    int i = N-2;
+    for (int i=2; i<=N-2; i++)
+    //int i = N-2;
+    //int i = 100;
     {            
-        double mu = 1417;
-        double J_term1 = -q * mu * ((n(i+1) + n(i)) / 2.0) * ((phi(i+1) - phi(i)) / deltaX);
-        double J_term2 = q * mu * thermal*(n(i+1) - n(i))/deltaX;
-        //double J = q * mu * (((n(j+1) + n(j)) / 2.0) * ((phi(j+1) - phi(j)) / deltaX) - thermal*(n(j+1) - n(j))/deltaX);
-        double J = J_term1 + J_term2;
-        J_SG = n(i+1)*B((phi(i+1) - phi(i)) / thermal) - n(i)*B((phi(i) - phi(i+1)) / thermal);
-        //double J = q * mu * (((n(j+1) + n(j)) / 2.0) * ((phi(j+1) - phi(j)) / deltaX) - thermal*(n(j+1) - n(j))/deltaX);
-        J_SG *= q * thermal * mu / deltaX;
-        J *= 1e-8;
-        J_SG *= 1e-8;
-        current_densities(i) = J;
-        printf("Result Current Density J: %f, term1: %f, term2: %f, J_SG: %f \n", J, J_term1, J_term2, J_SG);
+        double mu_n = 1480;
+        double mu_h = 464;
+        // double J_term1 = -q * mu_n * ((n(i+1) + n(i)) / 2.0) * ((phi(i+1) - phi(i)) / deltaX);
+        // double J_term2 = q * mu_n * thermal*(n(i+1) - n(i))/deltaX;
+        //double J = q * mu_n * (((n(j+1) + n(j)) / 2.0) * ((phi(j+1) - phi(j)) / deltaX) - thermal*(n(j+1) - n(j))/deltaX);
+        //double J = J_term1 + J_term2;
+        double J_n_SG = n(i+1)*B((phi(i+1) - phi(i)) / thermal) - n(i)*B((phi(i) - phi(i+1)) / thermal);
+        double J_h_SG = -p(i+1)*B(-(phi(i+1) - phi(i)) / thermal) + p(i)*B(-(phi(i) - phi(i+1)) / thermal);
+        //double J = q * mu_n * (((n(j+1) + n(j)) / 2.0) * ((phi(j+1) - phi(j)) / deltaX) - thermal*(n(j+1) - n(j))/deltaX);
+        J_n_SG *= 1e-8;
+        J_h_SG *= 1e-8;
+        J_SG = mu_n*J_n_SG - mu_h*J_h_SG;
+        J_SG *= q * thermal / deltaX;
+        //J_SG *= 1e6;
+        
+        //current_densities(i) = J_SG;
+        printf("Result Current Density J: %f (J_n_SG: %f, J_h_SG: %f) \n", J_SG, J_n_SG, J_h_SG);
+        //printf("Result Current Density J: %f, term1: %f, term2: %f, J_SG: %f \n", J, J_term1, J_term2, J_SG);
     }
     //current_densities.save("current_densities.txt", arma::raw_ascii);
 
@@ -354,20 +363,22 @@ double get_current_densities(vec &phi_n_p)
 void fill_initial(vec &phi_n_p)
 {    
     // fill phi
-    phi_n_p(span(1, interface_i)) = compute_eq_phi(dop_left) * one_vector(span(1, N));
-    phi_n_p(span(interface_i+1, N)) = - compute_eq_phi(dop_right) * log(dop_right/n_int) * one_vector(span(1, N));
+    phi_n_p(span(1, interface_i)) = compute_eq_phi(dop_left) * one_vector(span(1, interface_i));
+    phi_n_p(span(interface_i+1, N)) = compute_eq_phi(dop_right) * one_vector(span(interface_i+1, N));
     
     // fill n
-    phi_n_p(span(N+1, N+interface_i)) = dop_left * one_vector(span(N+1, N+interface_i));        
-    phi_n_p(span(N+interface_i, 2*N)) = 0;        
+    phi_n_p(span(N+1, N+interface_i)) = abs(dop_left) * one_vector(span(N+1, N+interface_i));        
+    phi_n_p(span(N+interface_i+1, 2*N)) = abs(n_int*n_int/dop_right) * one_vector(span(N+interface_i+1, 2*N));      
+
+    // fill h
+    phi_n_p(span(2*N+1, 2*N+interface_i)) = abs(n_int*n_int/dop_left) * one_vector(span(2*N+1, 2*N+interface_i));        
+    phi_n_p(span(2*N+interface_i+1, 3*N)) = abs(dop_right) * one_vector(span(2*N+interface_i+1, 3*N));              
 }
 
 void compute_I_V_curve()
 {    
     vec phi_n_p_k(3*N + 1, arma::fill::zeros);  
-    
-    phi_n_p_k(span(1, N)) = thermal * log(dop_left/n_int) * one_vector(span(1, N));
-    phi_n_p_k(span(N+1, 2*N)) = dop_left * one_vector(span(1, N));    
+    //fill_initial(phi_n_p_k);    
 
     bool load_initial_solution_from_NP = true;    
     if (load_initial_solution_from_NP)
@@ -392,12 +403,12 @@ void compute_I_V_curve()
         phi_n_p_k(span(2*N+1, 3*N)) = holeDensity_from_NP(span(0, N-1));        
     }
 
-    int num_biases = 0;
+    int num_biases = 20;
     vec current_densities(num_biases+1, arma::fill::zeros);    
     for (int i=0; i<=(num_biases); ++i)
     {
-        //double bias = - i * 0.05;
-        double bias = i * 0.05;
+        double bias = - i * 0.05;
+        //double bias = i * 0.05;
         printf("Applying Bias: %f V \n", bias);
         solve_for_phi_n(phi_n_p_k, bias);
         double J = get_current_densities(phi_n_p_k);    

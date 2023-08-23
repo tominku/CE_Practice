@@ -10,21 +10,21 @@
 // #include <fmt/format.h>
 using namespace arma; 
 
-const int N = 101;
-double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
-//double n_int = 1.0*1e16;
+const int N = 301;
+//double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
+double n_int = 1.0*1e16;
 double T = 300;    
 double thermal = k_B * T / q;
 
-double left_part_width = 5e-7;
+double left_part_width = 2e-7;
 double total_width = left_part_width*2;
 double deltaX = total_width / (N-1); // in meter  
 double coeff = deltaX*deltaX*q / eps_0;
 
 // double dop_left = 5e25; // in m^3
 // double dop_center = 2e23; // in m^3
-double dop_left = 1e23; // in m^3
-double dop_right = -1e23;
+double dop_left = 5e23; // in m^3
+double dop_right = -2e23;
 
 int interface_i = round(left_part_width/deltaX) + 1;
 
