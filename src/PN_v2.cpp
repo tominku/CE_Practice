@@ -30,7 +30,7 @@ double coeff = deltaX*deltaX*q;
 double dop_left = 1e23; // in m^3, n-type
 double dop_right = -1e23; // p-type
 int interface_i = round(left_part_width/deltaX) + 1;
-vec one_vector(2*N, fill::ones);
+vec one_vector(3*N+1, fill::ones);
 
 double B(double x)
 {
