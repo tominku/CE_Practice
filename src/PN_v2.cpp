@@ -12,7 +12,7 @@
 // #include <fmt/format.h>
 using namespace arma; 
 
-const int N = 201;
+const int N = 101;
 //int n_int = 1e10;
 //double n_int = 1e16;
 double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
@@ -28,8 +28,8 @@ double deltaX = (total_width) / (N-1); // in meter
 double coeff = deltaX*deltaX*q;
 
 double dop_left = 1e23; // in m^3, n-type
-double dop_right = 1e23; // p-type
-int interface1_i = round(left_part_width/deltaX) + 1;
+double dop_right = -1e23; // p-type
+int interface_i = round(left_part_width/deltaX) + 1;
 vec one_vector(2*N, fill::ones);
 
 double B(double x)
@@ -63,7 +63,17 @@ double deriveB(double x)
     return result;
 }
 
-// residual(phi): the size of r(phi) is N.
+double compute_eq_phi(double doping_density)
+{
+    double phi = 0;
+    if (doping_density > 0)
+        phi = thermal * log(doping_density/n_int);
+    else            
+        phi = - thermal * log(abs(doping_density)/n_int);
+    
+    return phi;        
+}
+
 void r_and_jacobian(vec &r, mat &jac, vec &phi_n_p, double bias)
 {
     r.fill(0.0);        
@@ -71,29 +81,16 @@ void r_and_jacobian(vec &r, mat &jac, vec &phi_n_p, double bias)
     int offset = N;    
 
     // from B.C. for phi
-    double phi1 = thermal * log(dop_left/n_int);
-    double phiN = - thermal * log(dop_right/n_int) + bias;
+    double phi1 = compute_eq_phi(dop_left);
+    double phiN = compute_eq_phi(dop_right) + bias;
     r(1) = phi_n_p(1) - phi1;
     r(N) = phi_n_p(N) - phiN;
-    // from B.C. for electron density
-    // r(offset+1) = phi_n_p(offset + 1) - dop_left;
-    // r(offset+N) = phi_n_p(offset + N) - n_int*exp(phiN/thermal);
-    r(offset+1) = phi_n_p(offset + 1) - dop_left;
-    r(offset+N) = phi_n_p(offset + N) - n_int*n_int/dop_right;
-    // from B.C. for electron density
-    // r(offset+1) = phi_n_p(offset + 1) - n_int*exp(phi1/thermal);
-    // r(offset+N) = phi_n_p(offset + N) - n_int*exp(phiN/thermal);
-    //r(offset+N) = phi_n_p(offset + N) - 0;
-    // from B.C. for hole density
-    // double holeDensity1 = n_int*exp(-phi1/thermal);
-    // double holeDensityN = n_int*exp(-phiN/thermal);
-    // r(offset+offset+1) = phi_n_p(offset+offset+1) - 0;
-    // r(offset+offset+N) = phi_n_p(offset+offset+N) - dop_right;
-    // from B.C. for hole density
-    // r(offset+offset+1) = phi_n_p(offset+offset+1) - n_int*exp(-phi1/thermal);
-    // r(offset+offset+N) = phi_n_p(offset+offset+N) - n_int*exp(-phiN/thermal);
-    r(offset+offset+1) = phi_n_p(offset+offset+1) - n_int*n_int/dop_left;
-    r(offset+offset+N) = phi_n_p(offset+offset+N) - dop_right;
+    // from B.C. for electron density    
+    r(offset+1) = phi_n_p(offset + 1) - abs(dop_left);
+    r(offset+N) = phi_n_p(offset + N) - abs(n_int*n_int/dop_right);    
+    // from B.C. for hole density    
+    r(offset+offset+1) = phi_n_p(offset+offset+1) - abs(n_int*n_int/dop_left);
+    r(offset+offset+N) = phi_n_p(offset+offset+N) - abs(dop_right);
 
     jac(1, 1) = 1.0; 
     jac(N, N) = 1.0; 
@@ -117,12 +114,12 @@ void r_and_jacobian(vec &r, mat &jac, vec &phi_n_p, double bias)
 
         double n_i = phi_n_p(offset+i);
         double p_i = phi_n_p(offset+offset+i);
-        if (i < interface1_i)
-            r(i) += - coeff*((-dop_left) + n_i - p_i); 
-        else if (i == interface1_i)
-            r(i) += - coeff*(0.5*(-dop_left) + 0.5*( dop_right) + n_i - p_i);                 
-        else if (i > interface1_i)
-            r(i) += - coeff*(( dop_right) + n_i - p_i);             
+        if (i < interface_i)
+            r(i) += coeff*((dop_left) - n_i + p_i); 
+        else if (i == interface_i)
+            r(i) += coeff*(0.5*(dop_left) + 0.5*(dop_right) - n_i + p_i);                 
+        else if (i > interface_i)
+            r(i) += coeff*(dop_right - n_i + p_i);             
 
         // poisson w.r.t phis
         jac(i, i+1) = eps_i_p_0_5;
@@ -354,6 +351,17 @@ double get_current_densities(vec &phi_n_p)
     return J_SG;
 }
 
+void fill_initial(vec &phi_n_p)
+{    
+    // fill phi
+    phi_n_p(span(1, interface_i)) = compute_eq_phi(dop_left) * one_vector(span(1, N));
+    phi_n_p(span(interface_i+1, N)) = - compute_eq_phi(dop_right) * log(dop_right/n_int) * one_vector(span(1, N));
+    
+    // fill n
+    phi_n_p(span(N+1, N+interface_i)) = dop_left * one_vector(span(N+1, N+interface_i));        
+    phi_n_p(span(N+interface_i, 2*N)) = 0;        
+}
+
 void compute_I_V_curve()
 {    
     vec phi_n_p_k(3*N + 1, arma::fill::zeros);  
@@ -361,9 +369,30 @@ void compute_I_V_curve()
     phi_n_p_k(span(1, N)) = thermal * log(dop_left/n_int) * one_vector(span(1, N));
     phi_n_p_k(span(N+1, 2*N)) = dop_left * one_vector(span(1, N));    
 
-    bool load_initial_solution_from_NP = false;    
+    bool load_initial_solution_from_NP = true;    
+    if (load_initial_solution_from_NP)
+    {
+        std::string file_name = fmt::format("NP_PN_phi_{:.2f}.csv", 0.0); 
+        cout << file_name << "\n";        
+        vec phi_from_NP(N, fill::zeros);
+        phi_from_NP.load(file_name);
 
-    int num_biases = 16;
+        file_name = fmt::format("NP_PN_eDensity_{:.2f}.csv", 0.0); 
+        cout << file_name << "\n";        
+        vec eDensity_from_NP(N, fill::zeros);
+        eDensity_from_NP.load(file_name);        
+
+        file_name = fmt::format("NP_PN_holeDensity_{:.2f}.csv", 0.0); 
+        cout << file_name << "\n";        
+        vec holeDensity_from_NP(N, fill::zeros);
+        holeDensity_from_NP.load(file_name);           
+                        
+        phi_n_p_k(span(1, N)) = phi_from_NP(span(0, N-1));        
+        phi_n_p_k(span(N+1, 2*N)) = eDensity_from_NP(span(0, N-1));        
+        phi_n_p_k(span(2*N+1, 3*N)) = holeDensity_from_NP(span(0, N-1));        
+    }
+
+    int num_biases = 0;
     vec current_densities(num_biases+1, arma::fill::zeros);    
     for (int i=0; i<=(num_biases); ++i)
     {
