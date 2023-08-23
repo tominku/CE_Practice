@@ -10,21 +10,21 @@
 // #include <fmt/format.h>
 using namespace arma; 
 
-const int N = 201;
+const int N = 101;
 double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
 //double n_int = 1.0*1e16;
 double T = 300;    
 double thermal = k_B * T / q;
 
-double left_part_width = 1e-8;
+double left_part_width = 2e-7;
 double total_width = left_part_width*2;
 double deltaX = total_width / (N-1); // in meter  
 double coeff = deltaX*deltaX*q / eps_0;
 
 // double dop_left = 5e25; // in m^3
 // double dop_center = 2e23; // in m^3
-double dop_left = 1e23; // in m^3
-double dop_right = -1e23;
+double dop_left = 1e24; // in m^3
+double dop_right = -1e24;
 
 int interface_i = round(left_part_width/deltaX) + 1;
 
@@ -56,7 +56,7 @@ void r_and_jacobian(vec &r, mat &jac, vec &phi, double boundary_potential)
 
     double eps_i_p_0_5 = 0.0;
     double eps_i_m_0_5 = 0.0;                        
-    double dop_term = 0.0;
+    double ion_term = 0.0;
 
     for (int i=(1+1); i<N; i++)
     {                               
@@ -67,24 +67,24 @@ void r_and_jacobian(vec &r, mat &jac, vec &phi, double boundary_potential)
         {                        
             eps_i_m_0_5 = eps_si_rel;
             eps_i_p_0_5 = eps_si_rel;
-            dop_term = dop_left;                                           
+            ion_term = dop_left;                                           
         }
         else if (i == interface_i)
         {            
             eps_i_m_0_5 = eps_si_rel;
             eps_i_p_0_5 = eps_si_rel;
-            dop_term = 0.5*(dop_left) + 0.5*(dop_right);                                  
+            ion_term = 0.5*(dop_left) + 0.5*(dop_right);                                  
         }
         else if (i > interface_i)
         {
-            eps_i_m_0_5 = eps_si;
-            eps_i_p_0_5 = eps_si;
-            dop_term = dop_right;                         
+            eps_i_m_0_5 = eps_si_rel;
+            eps_i_p_0_5 = eps_si_rel;
+            ion_term = dop_right;                         
         }
         
         r(i) = r_term_due_to_n_p;                    
         r(i) += eps_i_p_0_5*phi(i+1) -(eps_i_p_0_5 + eps_i_m_0_5)*phi(i) + eps_i_m_0_5*phi(i-1);
-        r(i) += coeff*dop_term;            
+        r(i) += coeff*ion_term;            
 
         jac(i, i) = jac_term_due_to_n_p;                                      
         jac(i, i) += -(eps_i_p_0_5 + eps_i_m_0_5);
@@ -163,7 +163,7 @@ void save_current_densities(vec &phi_n)
         current_densities(i) = J;
         printf("Result Current Density J: %f, term1: %f, term2: %f \n", J, J_term1, J_term2);
     }
-    current_densities.save("current_densities.txt", arma::raw_ascii);
+    //current_densities.save("current_densities.txt", arma::raw_ascii);
 }
 
 
@@ -190,20 +190,33 @@ int main() {
         args.N = N;    
         vec n(N+1, arma::fill::zeros);
         n(span(1, N)) = n_int * exp(phi(span(1, N)) / thermal);
-        n /= 1e6;
-        args.y_label = "eDensity (cm^3)";
-        args.logscale_y = 10;
+        n /= 1e6;        
         vec eDensity = n(span(1, N));        
 
         std::string n_file_name = fmt::format("NP_eDensity_{:.2f}.csv", (0.1*i));
         eDensity.save(n_file_name, csv_ascii);        
 
-        args.y_label = "Potential (V)";
-        args.logscale_y = -1;
+        vec h(N+1, arma::fill::zeros);
+        h(span(1, N)) = n_int * exp(- phi(span(1, N)) / thermal);
+        h /= 1e6;        
+        vec holeDensity = h(span(1, N));        
+
+        std::string h_file_name = fmt::format("NP_holeDensity_{:.2f}.csv", (0.1*i));
+        holeDensity.save(h_file_name, csv_ascii);        
+        
         vec phi_for_plot = phi(span(1, N));
         std::string phi_file_name = fmt::format("NP_phi_{:.2f}.csv", (0.1*i));
         phi_for_plot.save(phi_file_name, csv_ascii);
-        //plot(eDensity, args);
+        
+        args.y_label = "eDensity (cm^3)";
+        args.logscale_y = 10;        
+        plot(eDensity, args);
+        args.y_label = "holeDensity (cm^3)";
+        args.logscale_y = 10;
+        plot(holeDensity, args);
+        args.y_label = "Potential (V)";
+        args.logscale_y = -1;
+        plot(phi_for_plot, args);
         //plot(phi_for_plot, args);
 
         vec phi_n(2*N+1, arma::fill::zeros);
