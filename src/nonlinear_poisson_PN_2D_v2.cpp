@@ -11,7 +11,7 @@
 using namespace arma; 
 
 const int Nx = 101;
-const int Ny = 31;
+const int Ny = 21;
 const int N = Nx * Ny;
 //double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
 double n_int = 1.0*1e16;
@@ -20,24 +20,27 @@ double thermal = k_B * T / q;
 
 double left_part_width = 2e-7;
 double total_width = left_part_width*2;
-double deltaX = total_width / (N-1); // in meter  
-double total_height = 1e-7;
-double deltaY = (total_height) / (N-1); // in meter  
-double coeff = deltaX*deltaY*q;
+double deltaX = total_width / (Nx-1); // in meter  
+double total_height = 0.8e-7;
+double deltaY = (total_height) / (Ny-1); // in meter  
+double coeff = deltaX*deltaY*q / eps_0;
 const double DelYDelX = deltaY / deltaX;
 const double DelXDelY = deltaX / deltaY;
 
 #define ijTok(i, j) (Nx*(i-1) + j)
-#define eps_i_p(i, j) ((i+0.5) < Ny ? eps_si : 0)
-#define eps_i_m(i, j) ((i-0.5) > 1 ? eps_si : 0)
-#define eps_j_p(i, j) eps_si
-#define eps_j_m(i, j) eps_si
-#define phi_at(i, j, phi_name, phi_center_name) ((i) > 1 && (i) < Ny ? phi_name(ijTok(i, j)) : phi_center_name)
+//#define eps_i_p(i, j) ((i+0.5) < Ny ? eps_si : 0)
+//#define eps_i_m(i, j) ((i-0.5) > 1 ? eps_si : 0)
+#define eps_i_p(i, j) eps_si_rel
+#define eps_i_m(i, j) eps_si_rel
+#define eps_j_p(i, j) eps_si_rel
+#define eps_j_m(i, j) eps_si_rel
+//#define phi_at(i, j, phi_name, phi_center_name) ((i) > 1 && (i) < Ny ? phi_name(ijTok(i, j)) : phi_center_name)
+#define phi_at(i, j, phi_name, phi_center_name) ((i >= 1 && i <= Ny) ? phi_name(ijTok(i, j)) : phi_center_name)
 
 // double dop_left = 5e25; // in m^3
 // double dop_center = 2e23; // in m^3
-double dop_left = 5e23; // in m^3
-double dop_right = -2e23;
+double dop_left = 5e25; // in m^3
+double dop_right = -2e24;
 
 int interface_j = round(left_part_width/deltaX) + 1;
 
@@ -53,10 +56,10 @@ double compute_eq_phi(double doping_density)
     return phi;        
 }
 
-void r_and_jacobian(vec &r, mat &jac, vec &phi, double boundary_potential)
+void r_and_jacobian(vec &r, sp_mat &jac, vec &phi, double boundary_potential)
 {
     r.fill(0.0);        
-    jac.fill(0.0);       
+    jac.zeros();       
         
     // set boundary condition
     int j = 0;
@@ -81,53 +84,65 @@ void r_and_jacobian(vec &r, mat &jac, vec &phi, double boundary_potential)
         for (int j=(1+1); j<Nx; j++)
         {   
             int k = ijTok(i, j);
-            double phi_ij = phi(ijTok(i, j));
+            double phi_ij = phi(k);
             double r_term_due_to_n_p = coeff*n_int*( exp(phi_ij/thermal) - exp(-phi_ij/thermal) );            
-            double jac_term_due_to_n_p = coeff*n_int*(1.0/thermal)*( exp(phi(i)/thermal) + exp(-phi(i)/thermal) );
+            double jac_term_due_to_n_p = coeff*n_int*(1.0/thermal)*( exp(phi_ij/thermal) + exp(-phi_ij/thermal) );
             
             if (j < interface_j)                                                    
                 ion_term = -dop_left;                                                       
             else if (j == interface_j)            
                 ion_term = 0.5*(-dop_left) + 0.5*(-dop_right);                                              
             else if (j > interface_j)            
-                ion_term = -dop_right;                                     
-            
-            r(k) = r_term_due_to_n_p;     
+                ion_term = -dop_right;                                                             
 
             double phi_ipj = phi_at(i+1, j, phi, phi_ij);                           
             double phi_imj = phi_at(i-1, j, phi, phi_ij);                           
             double phi_ijp = phi_at(i, j+1, phi, phi_ij);                           
             double phi_ijm = phi_at(i, j-1, phi, phi_ij);                           
 
-            r(k) += - DelYDelX*eps_i_p(i, j)*(phi_ipj - phi_ij) +
-                    DelYDelX*eps_i_m(i, j)*(phi_ij - phi_imj) -
-                    DelXDelY*eps_j_p(i, j)*(phi_ijp - phi_ij) +
-                    DelXDelY*eps_j_m(i, j)*(phi_ij - phi_ijm);
-            r(k) += coeff*ion_term;            
+            double eff_ipj = 1.0;
+            double eff_imj = 1.0;
+            double eff_ijp = 1.0;
+            double eff_ijm = 1.0;
+            double total_eff = 1.0;
+            if (i == 1 || i == Ny)
+            {
+                eff_ipj = 0.5;
+                eff_imj = 0.5;
+                total_eff = 0.5;
+            }
 
-            jac(k, k) = jac_term_due_to_n_p;                                      
-            jac(k, k) += eps_i_p(i, j)*DelYDelX + eps_i_m(i, j)*DelYDelX +
-                eps_j_p(i, j)*DelXDelY + eps_j_m(i, j)*DelXDelY;
+            r(k) = total_eff*r_term_due_to_n_p;     
+            r(k) += - eff_ipj*DelYDelX*eps_i_p(i, j)*(phi_ipj - phi_ij) +
+                    eff_imj*DelYDelX*eps_i_m(i, j)*(phi_ij - phi_imj) -
+                    eff_ijp*DelXDelY*eps_j_p(i, j)*(phi_ijp - phi_ij) +
+                    eff_ijm*DelXDelY*eps_j_m(i, j)*(phi_ij - phi_ijm);
+            r(k) += total_eff*coeff*ion_term;            
+
+            jac(k, k) = total_eff*jac_term_due_to_n_p;                                      
+            jac(k, k) += eff_ipj*eps_i_p(i, j)*DelYDelX + eff_imj*eps_i_m(i, j)*DelYDelX +
+                eff_ijp*eps_j_p(i, j)*DelXDelY + eff_ijm*eps_j_m(i, j)*DelXDelY;
 
             if ((i+1) <= Ny)
-                jac(k, ijTok(i+1, j)) = - eps_i_p(i, j) * DelYDelX;
+                jac(k, ijTok(i+1, j)) = - eff_ipj*eps_i_p(i, j) * DelYDelX;            
             if ((i-1) >= 1)
-                jac(k, ijTok(i-1, j)) = - eps_i_m(i, j) * DelYDelX;
-            jac(k, ijTok(i, j+1)) = - eps_j_p(i, j) * DelXDelY;
-            jac(k, ijTok(i, j-1)) = - eps_j_m(i, j) * DelXDelY;
+                jac(k, ijTok(i-1, j)) = - eff_imj*eps_i_m(i, j) * DelYDelX;            
+            jac(k, ijTok(i, j+1)) = - eff_ijp*eps_j_p(i, j) * DelXDelY;
+            jac(k, ijTok(i, j-1)) = - eff_ijm*eps_j_m(i, j) * DelXDelY;
         }      
     }
 }
 
 vec solve_phi(double boundary_potential, vec &phi_0)
 {                
-    int num_iters = 30;    
+    int num_iters = 500;    
     printf("boundary voltage: %f \n", boundary_potential);
     vec log_residuals(num_iters, arma::fill::zeros);
     vec log_deltas(num_iters, arma::fill::zeros);
         
     vec r(N + 1, arma::fill::zeros);
-    mat jac(N + 1, N + 1, arma::fill::zeros);    
+    sp_mat jac(N + 1, N + 1);
+    jac = jac.zeros();    
     
     vec phi_k(N + 1, arma::fill::zeros);     
     phi_k = phi_0;
@@ -139,8 +154,9 @@ vec solve_phi(double boundary_potential, vec &phi_0)
         //printf("test");
         // xs.row(i) = x_i.t();         
         // residuals.row(i) = residual.t();     
-        //residual.print("residual: ");   
-        vec delta_phi_k = arma::solve(jac(span(1, N), span(1, N)), -r(span(1, N)));
+        //residual.print("residual: "); 
+        sp_mat jac_part = jac(span(1, N), span(1, N));  
+        vec delta_phi_k = arma::spsolve(jac_part, -r(span(1, N)));
         //phi_i(span(1, N - 1 - 1)) += delta_phi_i;                
         phi_k(span(1, N)) += delta_phi_k;                
         
@@ -152,11 +168,11 @@ vec solve_phi(double boundary_potential, vec &phi_0)
         double log_delta = log10(max(abs(delta_phi_k)));        
         log_residuals[k] = log_residual;
         log_deltas[k] = log_delta;
-        double cond_jac = arma::cond(jac);
-        printf("[iter %d]   log detal_x: %f   log residual: %f jac_cond: %f \n", k, log_delta, log_residual, cond_jac);  
+        //double cond_jac = arma::cond(jac);
+        printf("[iter %d]   log detal_x: %f   log residual: %f \n", k, log_delta, log_residual);  
         
-        // if (log_delta < - 10)
-        //     break;
+        if (log_delta < - 10)
+            break;
     }
         
     return phi_k;
@@ -193,15 +209,34 @@ void save_current_densities(vec &phi_n)
 }
 
 
+void fill_initial(vec &phi)
+{    
+    // fill phi
+    for (int i=1; i<=Ny; i++)
+    {
+        for (int j=1; j<=Nx; j++)
+        { 
+            int k = ijTok(i, j);            
+            if (j==1)  
+                phi(k) = compute_eq_phi(dop_left);
+            else if (j==Nx)                            
+                phi(k) = compute_eq_phi(dop_right);
+            else if (j <= interface_j)                
+                phi(k) = compute_eq_phi(dop_left);
+            else
+                phi(k) = compute_eq_phi(dop_right);                            
+        }
+    }        
+}
+
+
 int main() {    
 
     double start_potential = 0;    
 
     vec one_vector(N+1, arma::fill::ones);
     vec phi_0(N+1, arma::fill::zeros);
-    phi_0(span(1, interface_j)) = compute_eq_phi(dop_left) * one_vector(span(1, interface_j));    
-    phi_0(span(interface_j+1, N)) = compute_eq_phi(dop_right) * one_vector(span(interface_j+1, N));
-    printf("phi_left: %f, phi_right: %f", compute_eq_phi(dop_left), compute_eq_phi(dop_right));
+    fill_initial(phi_0);
     //for (int i=0; i<10; i++)
     {        
         int i = 0;
@@ -212,7 +247,7 @@ int main() {
         cout << log;        
 
         plot_args args;
-        args.total_width = 6.0;
+        args.total_width = total_width;
         args.N = N;    
         vec n(N+1, arma::fill::zeros);
         n(span(1, N)) = n_int * exp(phi(span(1, N)) / thermal);
@@ -227,11 +262,11 @@ int main() {
         h /= 1e6;        
         vec holeDensity = h(span(1, N));        
 
-        std::string h_file_name = fmt::format("NP_PN_holeDensity_{:.2f}.csv", (0.1*i));
+        std::string h_file_name = fmt::format("NP_PN_2D_holeDensity_{:.2f}.csv", (0.1*i));
         holeDensity.save(h_file_name, csv_ascii);        
         
         vec phi_for_plot = phi(span(1, N));
-        std::string phi_file_name = fmt::format("NP_PN_phi_{:.2f}.csv", (0.1*i));
+        std::string phi_file_name = fmt::format("NP_PN_2D_phi_{:.2f}.csv", (0.1*i));
         phi_for_plot.save(phi_file_name, csv_ascii);
                 
         vec phi_n(2*N+1, arma::fill::zeros);
