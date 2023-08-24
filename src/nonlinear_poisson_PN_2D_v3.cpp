@@ -18,7 +18,7 @@ double n_int = 1.0*1e16;
 double T = 300;    
 double thermal = k_B * T / q;
 
-double left_part_width = 3e-7;
+double left_part_width = 2e-7;
 double total_width = left_part_width*2;
 double deltaX = total_width / (Nx-1); // in meter  
 double total_height = 0.8e-7;
@@ -39,8 +39,8 @@ const double DelXDelY = deltaX / deltaY;
 
 // double dop_left = 5e25; // in m^3
 // double dop_center = 2e23; // in m^3
-double dop_left = 5e23; // in m^3
-double dop_right = -2e23;
+double dop_left = 5e25; // in m^3
+double dop_right = -2e24;
 
 int interface_i = round(left_part_width/deltaX) + 1;
 
