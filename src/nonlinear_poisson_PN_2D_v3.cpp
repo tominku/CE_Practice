@@ -23,17 +23,17 @@ double total_width = left_part_width*2;
 double deltaX = total_width / (Nx-1); // in meter  
 double total_height = 0.8e-7;
 double deltaY = (total_height) / (Ny-1); // in meter  
-double coeff = deltaX*deltaY*q / eps_0;
+double coeff = deltaX*deltaY*q;
 const double DelYDelX = deltaY / deltaX;
 const double DelXDelY = deltaX / deltaY;
 
 #define ijTok(i, j) (Nx*(j-1) + i)
 //#define eps_i_p(i, j) ((i+0.5) < Ny ? eps_si : 0)
 //#define eps_i_m(i, j) ((i-0.5) > 1 ? eps_si : 0)
-#define eps_i_p(i, j) eps_si_rel
-#define eps_i_m(i, j) eps_si_rel
-#define eps_j_p(i, j) eps_si_rel
-#define eps_j_m(i, j) eps_si_rel
+#define eps_i_p(i, j) eps_si
+#define eps_i_m(i, j) eps_si
+#define eps_j_p(i, j) eps_si
+#define eps_j_m(i, j) eps_si
 //#define phi_at(i, j, phi_name, phi_center_name) ((i) > 1 && (i) < Ny ? phi_name(ijTok(i, j)) : phi_center_name)
 #define phi_at(i, j, phi_name, phi_center_name) ((j >= 1 && j <= Ny) ? phi_name(ijTok(i, j)) : phi_center_name)
 
@@ -157,6 +157,12 @@ vec solve_phi(double boundary_potential, vec &phi_0)
         // residuals.row(i) = residual.t();     
         //residual.print("residual: "); 
         sp_mat jac_part = jac(span(1, N), span(1, N));  
+
+        superlu_opts opts;
+        opts.allow_ugly  = true;
+        opts.equilibrate = true;
+        //opts.refine = superlu_opts::REF_DOUBLE;
+
         vec delta_phi_k = arma::spsolve(jac_part, -r(span(1, N)));
         //phi_i(span(1, N - 1 - 1)) += delta_phi_i;                
         phi_k(span(1, N)) += delta_phi_k;                
@@ -211,23 +217,22 @@ void save_current_densities(vec &phi_n)
 
 
 void fill_initial(vec &phi)
-{    
-    // fill phi
-    // for (int i=1; i<=Ny; i++)
-    // {
-    //     for (int j=1; j<=Nx; j++)
-    //     { 
-    //         int k = ijTok(i, j);            
-    //         if (j==1)  
-    //             phi(k) = compute_eq_phi(dop_left);
-    //         else if (j==Nx)                            
-    //             phi(k) = compute_eq_phi(dop_right);
-    //         else if (j <= interface_i)                
-    //             phi(k) = compute_eq_phi(dop_left);
-    //         else
-    //             phi(k) = compute_eq_phi(dop_right);                            
-    //     }
-    // }        
+{        
+    for (int j=1; j<=Ny; j++)
+    {
+        for (int i=1; i<=Nx; i++)
+        { 
+            int k = ijTok(i, j);            
+            if (i==1)  
+                phi(k) = compute_eq_phi(dop_left);
+            else if (i==Nx)                            
+                phi(k) = compute_eq_phi(dop_right);
+            else if (i <= interface_i)                
+                phi(k) = compute_eq_phi(dop_left);
+            else
+                phi(k) = compute_eq_phi(dop_right);                            
+        }
+    }        
 }
 
 
