@@ -41,9 +41,9 @@ const string subject_name = "PN_2D_NP";
 
 // double dop_left = 5e25; // in m^3
 // double dop_center = 2e23; // in m^3
-double dop_left = 5e24; // in m^3
+double dop_left = 5e23; // in m^3
 //double dop_right = -2e24;
-double dop_right = 2e24;
+double dop_right = -2e23;
 
 int interface_i = round(left_part_width/deltaX) + 1;
 
@@ -116,23 +116,22 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi, double boundary_potential)
             }
 
             r(k) = total_eff*r_term_due_to_n_p;     
+            // r(k) += - eff_ipj*DelYDelX*eps_i_p(i, j)*(phi_ipj - phi_ij) +
+            //         eff_imj*DelYDelX*eps_i_m(i, j)*(phi_ij - phi_imj) -
+            //         eff_ijp*DelXDelY*eps_j_p(i, j)*(phi_ijp - phi_ij) +
+            //         eff_ijm*DelXDelY*eps_j_m(i, j)*(phi_ij - phi_ijm);
             r(k) += - eff_ipj*DelYDelX*eps_i_p(i, j)*(phi_ipj - phi_ij) +
-                    eff_imj*DelYDelX*eps_i_m(i, j)*(phi_ij - phi_imj) -
-                    eff_ijp*DelXDelY*eps_j_p(i, j)*(phi_ijp - phi_ij) +
-                    eff_ijm*DelXDelY*eps_j_m(i, j)*(phi_ij - phi_ijm);
+                    eff_imj*DelYDelX*eps_i_m(i, j)*(phi_ij - phi_imj);                    
             r(k) += total_eff*coeff*ion_term;            
 
             jac(k, k) = total_eff*jac_term_due_to_n_p;                                      
-            jac(k, k) += eff_ipj*eps_i_p(i, j)*DelYDelX + eff_imj*eps_i_m(i, j)*DelYDelX +
-                eff_ijp*eps_j_p(i, j)*DelXDelY + eff_ijm*eps_j_m(i, j)*DelXDelY;
+            // jac(k, k) += eff_ipj*eps_i_p(i, j)*DelYDelX + eff_imj*eps_i_m(i, j)*DelYDelX +
+            //     eff_ijp*eps_j_p(i, j)*DelXDelY + eff_ijm*eps_j_m(i, j)*DelXDelY;
+            jac(k, k) += eff_ipj*eps_i_p(i, j)*DelYDelX + eff_imj*eps_i_m(i, j)*DelYDelX;                
 
             
             jac(k, ijTok(i+1, j)) = - eff_ipj*eps_i_p(i, j) * DelYDelX;                        
-            jac(k, ijTok(i-1, j)) = - eff_imj*eps_i_m(i, j) * DelYDelX;            
-            if ((j+1) <= Ny)                    
-                jac(k, ijTok(i, j+1)) = - eff_ijp*eps_j_p(i, j) * DelXDelY;
-            if ((j-1) >= 1)                
-                jac(k, ijTok(i, j-1)) = - eff_ijm*eps_j_m(i, j) * DelXDelY;
+            jac(k, ijTok(i-1, j)) = - eff_imj*eps_i_m(i, j) * DelYDelX;                        
         }      
     }
 }
@@ -270,8 +269,8 @@ int main() {
 
     vec one_vector(N+1, arma::fill::ones);
     vec phi_0(N+1, arma::fill::zeros);
-    //fill_initial(phi_0, "uniform");
-    fill_initial(phi_0, "linear");
+    fill_initial(phi_0, "uniform");
+    //fill_initial(phi_0, "linear");
     //for (int i=0; i<10; i++)
     {        
         int i = 0;

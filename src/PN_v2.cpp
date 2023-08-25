@@ -407,8 +407,8 @@ void compute_I_V_curve()
     vec current_densities(num_biases+1, arma::fill::zeros);    
     for (int i=0; i<=(num_biases); ++i)
     {
-        double bias = - i * 0.05;
-        //double bias = i * 0.05;
+        //double bias = - i * 0.05;
+        double bias = i * 0.05;
         printf("Applying Bias: %f V \n", bias);
         solve_for_phi_n(phi_n_p_k, bias);
         double J = get_current_densities(phi_n_p_k);    
