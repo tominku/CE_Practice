@@ -37,7 +37,7 @@ const double DelXDelY = deltaX / deltaY;
 //#define phi_at(i, j, phi_name, phi_center_name) ((i) > 1 && (i) < Ny ? phi_name(ijTok(i, j)) : phi_center_name)
 #define phi_at(i, j, phi_name, phi_center_name) ((j >= 1 && j <= Ny) ? phi_name(ijTok(i, j)) : phi_center_name)
 
-const string subject_name = "PN_NP_2D";
+const string subject_name = "PN_2D_NP";
 
 // double dop_left = 5e25; // in m^3
 // double dop_center = 2e23; // in m^3
@@ -140,6 +140,7 @@ vec solve_phi(double boundary_potential, vec &phi_0)
 {                
     int num_iters = 500;    
     printf("boundary voltage: %f \n", boundary_potential);
+    auto start = high_resolution_clock::now();
     vec log_residuals(num_iters, arma::fill::zeros);
     vec log_deltas(num_iters, arma::fill::zeros);
         
@@ -184,8 +185,17 @@ vec solve_phi(double boundary_potential, vec &phi_0)
             break;
     }
 
-        std::string convergence_file_name = fmt::format("{}_conv_{:.2f}.csv", subject_name, boundary_potential);
-        log_deltas.save(convergence_file_name, csv_ascii);            
+    auto stop = high_resolution_clock::now();
+    // Subtract stop and start timepoints and
+    // cast it to required unit. Predefined units
+    // are nanoseconds, microseconds, milliseconds,
+    // seconds, minutes, hours. Use duration_cast()
+    // function.
+    auto duration = duration_cast<milliseconds>(stop - start);        
+    cout << "duration: " << duration.count() << endl;
+
+    std::string convergence_file_name = fmt::format("{}_conv_{:.2f}.csv", subject_name, boundary_potential);
+    log_deltas.save(convergence_file_name, csv_ascii);            
         
     return phi_k;
     //plot(potentials, args);
@@ -277,7 +287,7 @@ int main() {
         n(span(1, N)) = n_int * exp(phi(span(1, N)) / thermal);
         n /= 1e6;        
         vec eDensity = n(span(1, N));        
-        std::string n_file_name = fmt::format("NP_PN_2D_eDensity_{:.2f}.csv", (0.1*i));
+        std::string n_file_name = fmt::format("{}_eDensity_{:.2f}.csv", subject_name, (0.1*i));
         eDensity.save(n_file_name, csv_ascii);        
 
         vec h(N+1, arma::fill::zeros);
@@ -285,11 +295,11 @@ int main() {
         h /= 1e6;        
         vec holeDensity = h(span(1, N));        
 
-        std::string h_file_name = fmt::format("NP_PN_2D_holeDensity_{:.2f}.csv", (0.1*i));
+        std::string h_file_name = fmt::format("{}_holeDensity_{:.2f}.csv", subject_name, (0.1*i));
         holeDensity.save(h_file_name, csv_ascii);        
         
         vec phi_for_plot = phi(span(1, N));
-        std::string phi_file_name = fmt::format("NP_PN_2D_phi_{:.2f}.csv", (0.1*i));
+        std::string phi_file_name = fmt::format("{}_phi_{:.2f}.csv", subject_name, (0.1*i));
         phi_for_plot.save(phi_file_name, csv_ascii);                        
 
         vec phi_n(2*N+1, arma::fill::zeros);

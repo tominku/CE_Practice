@@ -7,6 +7,8 @@ using namespace std;
 using namespace sciplot;
 typedef std::vector<double> stdvec;
 typedef std::vector < std::pair<double, double> > pairlist;
+#include <chrono>
+using namespace std::chrono;
 
 //const double q = 1.602192e-19; // (C)
 const double q = 1.602192e-19; // (C)
