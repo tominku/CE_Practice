@@ -108,30 +108,42 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi, double boundary_potential)
             double eff_ijp = 1.0;
             double eff_ijm = 1.0;
             double total_eff = 1.0;
-            if (j == 1 || j == Ny)
+            if (j == 1)
             {
                 eff_ipj = 0.5;
                 eff_imj = 0.5;
+                eff_ijm = 0.0;
+                total_eff = 0.5;
+            }            
+            else if(j == Ny)
+            {
+                eff_ipj = 0.5;
+                eff_imj = 0.5;
+                eff_ijp = 0.0;
                 total_eff = 0.5;
             }
 
             r(k) = total_eff*r_term_due_to_n_p;     
-            // r(k) += - eff_ipj*DelYDelX*eps_i_p(i, j)*(phi_ipj - phi_ij) +
-            //         eff_imj*DelYDelX*eps_i_m(i, j)*(phi_ij - phi_imj) -
-            //         eff_ijp*DelXDelY*eps_j_p(i, j)*(phi_ijp - phi_ij) +
-            //         eff_ijm*DelXDelY*eps_j_m(i, j)*(phi_ij - phi_ijm);
             r(k) += - eff_ipj*DelYDelX*eps_i_p(i, j)*(phi_ipj - phi_ij) +
-                    eff_imj*DelYDelX*eps_i_m(i, j)*(phi_ij - phi_imj);                    
+                    eff_imj*DelYDelX*eps_i_m(i, j)*(phi_ij - phi_imj) -
+                    eff_ijp*DelXDelY*eps_j_p(i, j)*(phi_ijp - phi_ij) +
+                    eff_ijm*DelXDelY*eps_j_m(i, j)*(phi_ij - phi_ijm);
+            // r(k) += - eff_ipj*DelYDelX*eps_i_p(i, j)*(phi_ipj - phi_ij) +
+            //         eff_imj*DelYDelX*eps_i_m(i, j)*(phi_ij - phi_imj);                    
             r(k) += total_eff*coeff*ion_term;            
 
             jac(k, k) = total_eff*jac_term_due_to_n_p;                                      
-            // jac(k, k) += eff_ipj*eps_i_p(i, j)*DelYDelX + eff_imj*eps_i_m(i, j)*DelYDelX +
-            //     eff_ijp*eps_j_p(i, j)*DelXDelY + eff_ijm*eps_j_m(i, j)*DelXDelY;
-            jac(k, k) += eff_ipj*eps_i_p(i, j)*DelYDelX + eff_imj*eps_i_m(i, j)*DelYDelX;                
+            jac(k, k) += eff_ipj*eps_i_p(i, j)*DelYDelX + eff_imj*eps_i_m(i, j)*DelYDelX +
+                eff_ijp*eps_j_p(i, j)*DelXDelY + eff_ijm*eps_j_m(i, j)*DelXDelY;
+            //jac(k, k) += eff_ipj*eps_i_p(i, j)*DelYDelX + eff_imj*eps_i_m(i, j)*DelYDelX;                
 
             
             jac(k, ijTok(i+1, j)) = - eff_ipj*eps_i_p(i, j) * DelYDelX;                        
-            jac(k, ijTok(i-1, j)) = - eff_imj*eps_i_m(i, j) * DelYDelX;                        
+            jac(k, ijTok(i-1, j)) = - eff_imj*eps_i_m(i, j) * DelYDelX;   
+            if (eff_ijp > 0)
+                jac(k, ijTok(i, j+1)) = - eff_ijp*eps_j_p(i, j) * DelXDelY;
+            if (eff_ijm > 0)                                
+                jac(k, ijTok(i, j-1)) = - eff_ijm*eps_j_m(i, j) * DelXDelY;                                             
         }      
     }
 }
