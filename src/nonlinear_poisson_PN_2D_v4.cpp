@@ -10,8 +10,8 @@
 // #include <fmt/format.h>
 using namespace arma; 
 
-const int Nx = 101;
-const int Ny = 21;
+const int Nx = 201;
+const int Ny = 41;
 const int N = Nx * Ny;
 //double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
 double n_int = 1.0*1e16;
