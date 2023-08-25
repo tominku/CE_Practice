@@ -37,9 +37,11 @@ const double DelXDelY = deltaX / deltaY;
 //#define phi_at(i, j, phi_name, phi_center_name) ((i) > 1 && (i) < Ny ? phi_name(ijTok(i, j)) : phi_center_name)
 #define phi_at(i, j, phi_name, phi_center_name) ((j >= 1 && j <= Ny) ? phi_name(ijTok(i, j)) : phi_center_name)
 
+const string subject_name = "PN_NP_2D";
+
 // double dop_left = 5e25; // in m^3
 // double dop_center = 2e23; // in m^3
-double dop_left = 5e25; // in m^3
+double dop_left = 5e24; // in m^3
 double dop_right = -2e24;
 
 int interface_i = round(left_part_width/deltaX) + 1;
@@ -181,6 +183,9 @@ vec solve_phi(double boundary_potential, vec &phi_0)
         if (log_delta < - 10)
             break;
     }
+
+        std::string convergence_file_name = fmt::format("{}_conv_{:.2f}.csv", subject_name, boundary_potential);
+        log_deltas.save(convergence_file_name, csv_ascii);            
         
     return phi_k;
     //plot(potentials, args);
@@ -216,23 +221,35 @@ void save_current_densities(vec &phi_n)
 }
 
 
-void fill_initial(vec &phi)
+void fill_initial(vec &phi, string method)
 {        
+    double phi_1 = compute_eq_phi(dop_left);
+    double phi_Nx = compute_eq_phi(dop_right);
     for (int j=1; j<=Ny; j++)
     {
         for (int i=1; i<=Nx; i++)
         { 
             int k = ijTok(i, j);            
             if (i==1)  
-                phi(k) = compute_eq_phi(dop_left);
+                phi(k) = phi_1;
             else if (i==Nx)                            
-                phi(k) = compute_eq_phi(dop_right);
-            else if (i <= interface_i)                
-                phi(k) = compute_eq_phi(dop_left);
+                phi(k) = phi_Nx;
             else
-                phi(k) = compute_eq_phi(dop_right);                            
+            {
+                if (method.compare("uniform") == 0)
+                {
+                    if (i <= interface_i)                
+                        phi(k) = phi_1;
+                    else
+                        phi(k) = phi_Nx;                            
+                }
+                else if (method.compare("linear") == 0)
+                {
+                    phi(k) = phi_1 + (phi_Nx - phi_1) * ((i-1)/(Nx-1));
+                }
+            }
         }
-    }        
+     }      
 }
 
 
@@ -242,7 +259,8 @@ int main() {
 
     vec one_vector(N+1, arma::fill::ones);
     vec phi_0(N+1, arma::fill::zeros);
-    fill_initial(phi_0);
+    fill_initial(phi_0, "uniform");
+    //fill_initial(phi_0, "linear");
     //for (int i=0; i<10; i++)
     {        
         int i = 0;
@@ -259,7 +277,6 @@ int main() {
         n(span(1, N)) = n_int * exp(phi(span(1, N)) / thermal);
         n /= 1e6;        
         vec eDensity = n(span(1, N));        
-
         std::string n_file_name = fmt::format("NP_PN_2D_eDensity_{:.2f}.csv", (0.1*i));
         eDensity.save(n_file_name, csv_ascii);        
 
@@ -273,8 +290,8 @@ int main() {
         
         vec phi_for_plot = phi(span(1, N));
         std::string phi_file_name = fmt::format("NP_PN_2D_phi_{:.2f}.csv", (0.1*i));
-        phi_for_plot.save(phi_file_name, csv_ascii);
-                
+        phi_for_plot.save(phi_file_name, csv_ascii);                        
+
         vec phi_n(2*N+1, arma::fill::zeros);
         phi_n(span(1, N)) = phi(span(1, N));
         phi_n(span(N+1, 2*N)) = eDensity;        

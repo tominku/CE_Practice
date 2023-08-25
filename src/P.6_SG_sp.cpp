@@ -70,10 +70,10 @@ double deriveB(double x)
 }
 
 // residual(phi): the size of r(phi) is N.
-void r_and_jacobian(vec &r, mat &jac, vec &phi_n, double bias)
+void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n, double bias)
 {
     r.fill(0.0);        
-    jac.fill(0.0);
+    jac.zeros();
     int offset = N;
 
     r(1) = phi_n(1) - thermal * log(dop_left/n_int);
@@ -189,7 +189,8 @@ void save_mat(std::string file_name, mat &m)
 void solve_for_phi_n(vec &phi_n_k, double bias)
 {        
     vec r(2*N + 1, arma::fill::zeros);
-    mat jac(2*N + 1, 2*N + 1, arma::fill::zeros);    
+    sp_mat jac(2*N + 1, 2*N + 1);    
+    jac.zeros();
 
     int num_iters = 15;   
 
@@ -208,7 +209,7 @@ void solve_for_phi_n(vec &phi_n_k, double bias)
         {
             mat jac_part = jac(span(N+1, 2*N), span(N+1, 2*N));
             vec r_part = r(span(N+1, 2*N));
-            vec delta_n = arma::solve(jac_part, -r_part);  
+            vec delta_n = arma::spsolve(jac_part, -r_part);  
             phi_n_k(span(N+1, 2*N)) += delta_n;
 
             double log_residual = log10(max(abs(r_part)));                                            
@@ -224,7 +225,7 @@ void solve_for_phi_n(vec &phi_n_k, double bias)
             // c_vector(span(N+1, 2*N-1-1)) = dop_left * one_vector(span(N, 2*N-1-2));        
             mat C = diagmat(c_vector);  
             //mat C = eye(2*N, 2*N);
-            mat jac_scaled = jac(span(1, 2*N), span(1, 2*N)) * C;
+            sp_mat jac_scaled = jac(span(1, 2*N), span(1, 2*N)) * C;
             
             colvec r_vector_temp = arma::sum(abs(jac_scaled), 1);
             vec r_vector(2*N, fill::zeros);
@@ -236,14 +237,14 @@ void solve_for_phi_n(vec &phi_n_k, double bias)
             jac_scaled = R * jac_scaled;
             vec r_scaled = R * r(span(1, 2*N));
 
-            double cond_jac = arma::cond(jac_scaled);
-            printf("[iter %d]   condition number of scaled jac: %f \n", k, cond_jac); 
+            //double cond_jac = arma::cond(jac_scaled);
+            //printf("[iter %d]   condition number of scaled jac: %f \n", k, cond_jac); 
             
             //jac_scaled.print("jac_scaled: ");
             //jac.print("jac:");
             //jac_scaled.save("jac_scaled.txt", arma::raw_ascii);        
             //save_mat("jac_scaled.txt", jac_scaled);
-            vec delta_phi_n = arma::solve(jac_scaled, -r_scaled);        
+            vec delta_phi_n = arma::spsolve(jac_scaled, -r_scaled);        
             //vec delta_phi = arma::solve(jac(span(1, 2*N), span(1, 2*N)), -r(span(1, 2*N)));        
             phi_n_k(span(1, 2*N)) += C * delta_phi_n;                
             
