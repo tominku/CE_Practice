@@ -47,6 +47,8 @@ double dop_right = -2e24;
 
 int interface_i = round(left_part_width/deltaX) + 1;
 
+double B(double x);
+double dB(double x);
 
 double compute_eq_phi(double doping_density)
 {
@@ -97,6 +99,11 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double boundary_potential
             int k_n = N + k;
             int p_n = 2*N + k;
             
+            double s_ipj = deltaY;
+            double s_imj = deltaY;
+            double s_ijp = deltaX;
+            double s_ijm = deltaX;
+
             if (i < interface_i)                                                    
                 ion_term = -dop_left;                                                       
             else if (i == interface_i)            
@@ -154,16 +161,37 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double boundary_potential
             // Jacobian for the Poisson Equation
             jac(k, k) = eff_ipj*eps_i_p(i, j)*DelYDelX + eff_imj*eps_i_m(i, j)*DelYDelX +
                 eff_ijp*eps_j_p(i, j)*DelXDelY + eff_ijm*eps_j_m(i, j)*DelXDelY;            
-            
             jac(k, ijTok(i+1, j)) = - eff_ipj*eps_i_p(i, j) * DelYDelX;                        
             jac(k, ijTok(i-1, j)) = - eff_imj*eps_i_m(i, j) * DelYDelX;   
             if (eff_ijp > 0)
                 jac(k, ijTok(i, j+1)) = - eff_ijp*eps_j_p(i, j) * DelXDelY;
             if (eff_ijm > 0)                                
-                jac(k, ijTok(i, j-1)) = - eff_ijm*eps_j_m(i, j) * DelXDelY;                                             
-            
+                jac(k, ijTok(i, j-1)) = - eff_ijm*eps_j_m(i, j) * DelXDelY;                                                         
             jac(k, N + ijTok(i, j)) =  total_eff*coeff; // r w.r.t. n                        
-            jac(k, 2*N + ijTok(i, j)) = - total_eff*coeff; // r w.r.t. p         
+            jac(k, 2*N + ijTok(i, j)) = - total_eff*coeff; // r w.r.t. p    
+
+            // Residual for the SG (n)     
+            double Jn_ipj = n_ipj*B(phi_diff_ipi/thermal) - n_ij*B(-phi_diff_ipi/thermal);
+            double Jn_imj = n_ij*B(phi_diff_iim/thermal) - n_imj*B(-phi_diff_iim/thermal);
+            double Jn_ijp = n_ijp*B(phi_diff_jpj/thermal) - n_ij*B(-phi_diff_jpj/thermal);
+            double Jn_ijm = n_ij*B(phi_diff_jjm/thermal) - n_ijm*B(-phi_diff_jjm/thermal);
+            r(N + k) = s_ipj*Jn_ipj - s_imj*Jn_imj + s_ijp*Jn_ijp - s_ijm*Jn_ijm;
+
+            // Jacobian for the SG (n)
+            // w.r.t. phis
+            jac(N + k, ijTok(i+1, j)) = s_ipj*(n_ij*dB(-phi_diff_ipi/thermal) + n_ipj*dB(phi_diff_ipi/thermal)) / thermal;
+            jac(N + k, ijTok(i-1, j)) = s_imj*(n_imj*dB(-phi_diff_iim/thermal) + n_ij*dB(phi_diff_iim/thermal)) / thermal;
+            jac(N + k, ijTok(i, j+1)) = s_ijp*(n_ij*dB(-phi_diff_jpj/thermal) + n_ijp*dB(phi_diff_jpj/thermal)) / thermal;
+            jac(N + k, ijTok(i, j-1)) = s_ijm*(n_ijm*dB(-phi_diff_jjm/thermal) + n_ij*dB(phi_diff_jjm/thermal)) / thermal;
+            jac(N + k, ijTok(i, j)) = - jac(N + k, ijTok(i+1, j)) - jac(N + k, ijTok(i-1, j)) - jac(N + k, ijTok(i, j+1)) - jac(N + k, ijTok(i, j-1));
+            // w.r.t. ns
+            jac(N + k, N + ijTok(i+1, j)) = s_ipj*B(phi_diff_ipi/thermal);
+            jac(N + k, N + ijTok(i-1, j)) = s_imj*B(-phi_diff_iim/thermal);
+            jac(N + k, N + ijTok(i, j+1)) = s_ijp*B(phi_diff_jpj/thermal);
+            jac(N + k, N + ijTok(i, j-1)) = s_ijm*B(-phi_diff_jjm/thermal);
+            jac(N + k, N + ijTok(i, j)) = - s_ipj*B(-phi_diff_ipi/thermal) - s_imj*B(phi_diff_iim/thermal) - s_ijp*B(-phi_diff_jpj/thermal) - s_ijm*B(phi_diff_jjm/thermal);
+            //jac(N + k, N + ijTok(i+1, j))                
+            
         }      
     }
 }
@@ -346,4 +374,34 @@ int main() {
 
         //save_current_densities(phi_n);
     }
+}
+
+double B(double x)
+{
+    double result = 0.0;
+    
+    if (abs(x) < 0.0252)   
+        // Bern_P1 = ( 1.0-(x1)/2.0+(x1)^2/12.0*(1.0-(x1)^2/60.0*(1.0-(x1)^2/42.0)) ) ;        
+        result = 1.0 - x/2.0 + pow(x, 2.0)/12.0 * (1.0 - pow(x, 2.0)/60.0 * (1.0 - pow(x, 2.0)/42.0));    
+    else if (abs(x) < 0.15)
+        // Bern_P1 = ( 1.0-(x1)/2.0+(x1)^2/12.0*(1.0-(x1)^2/60.0*(1.0-(x1)^2/42.0*(1-(x1)^2/40*(1-0.02525252525252525252525*(x1)^2)))));
+        result = 1.0 - x/2.0 + pow(x, 2.0)/12.0 * (1.0 - pow(x, 2.0)/60.0 * (1.0 - pow(x, 2.0)/42.0 * (1 - pow(x, 2.0)/40 * (1 - 0.02525252525252525252525*pow(x, 2.0)))));
+    else
+        result = x / (exp(x) - 1);
+    return result;
+}
+
+double dB(double x)
+{
+    double result = 0.0;
+    if (abs(x) < 0.0252)
+        // Deri_Bern_P1_phi1 = (-0.5 + (x1)/6.0*(1.0-(x1)^2/30.0*(1.0-(x1)^2/28.0)) )/thermal;
+        result = -0.5 + x/6.0 * (1.0 - pow(x, 2.0)/30.0 * (1.0 - pow(x, 2.0)/28.0));
+    else if (abs(x) < 0.15)
+        // Deri_Bern_P1_phi1 = (-0.5 + (x1)/6.0*(1.0-(x1)^2/30.0*(1.0-(x1)^2/28.0*(1-(x1)^2/30*(1-0.03156565656565656565657*(x1)^2)))))/thermal;
+        result = -0.5 + x/6.0 * (1.0 - pow(x, 2.0)/30.0 * (1.0 - pow(x, 2.0)/28.0 * (1 - pow(x, 2.0)/30 * (1 - 0.03156565656565656565657*pow(x, 2.0)))));
+    else
+        // Deri_Bern_P1_phi1=(1/(exp(x1)-1)-Bern_P1*(1/(exp(x1)-1)+1))/thermal;
+        result = 1.0/(exp(x)-1) - B(x)*(1.0 / (exp(x) - 1) + 1);
+    return result;
 }
