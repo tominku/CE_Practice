@@ -139,11 +139,16 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double boundary_potential
                 total_eff = 0.5;
             }
             
+            double phi_diff_ipi = phi_ipj - phi_ij;
+            double phi_diff_iim = phi_ij - phi_imj;
+            double phi_diff_jpj = phi_ijp - phi_ij;
+            double phi_diff_jjm = phi_ij - phi_ijm;
+
             // Residual for the Poisson Equation
-            r(k) = - eff_ipj*DelYDelX*eps_i_p(i, j)*(phi_ipj - phi_ij) +
-                    eff_imj*DelYDelX*eps_i_m(i, j)*(phi_ij - phi_imj) -
-                    eff_ijp*DelXDelY*eps_j_p(i, j)*(phi_ijp - phi_ij) +
-                    eff_ijm*DelXDelY*eps_j_m(i, j)*(phi_ij - phi_ijm);            
+            r(k) = - eff_ipj*DelYDelX*eps_i_p(i, j)*(phi_diff_ipi) +
+                    eff_imj*DelYDelX*eps_i_m(i, j)*(phi_diff_iim) -
+                    eff_ijp*DelXDelY*eps_j_p(i, j)*(phi_diff_jpj) +
+                    eff_ijm*DelXDelY*eps_j_m(i, j)*(phi_diff_jjm);            
             r(k) += total_eff*coeff*(ion_term + n(k) - p(k));            
             
             // Jacobian for the Poisson Equation
