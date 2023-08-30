@@ -23,9 +23,6 @@ double total_width = left_part_width*2;
 double deltaX = total_width / (Nx-1); // in meter  
 double total_height = 0.8e-7;
 double deltaY = (total_height) / (Ny-1); // in meter  
-double coeff = deltaX*deltaY*q;
-const double DelYDelX = deltaY / deltaX;
-const double DelXDelY = deltaX / deltaY;
 
 #define ijTok(i, j) (Nx*(j-1) + i)
 //#define eps_ipj(i, j) ((i+0.5) < Ny ? eps_si : 0)
@@ -61,11 +58,10 @@ double compute_eq_phi(double doping_density)
     return phi;        
 }
 
-void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double boundary_potential)
+void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double bias)
 {
     r.fill(0.0);        
-    jac.zeros();       
-    int offset = N; 
+    jac.zeros();           
 
     vec phi = phi_n_p(span(1, N));
     vec n = phi_n_p(span(N+1, 2*N));
@@ -77,13 +73,22 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double boundary_potential
         // left boundary
         i = 1;      
         int k = ijTok(i, j);
-        r(k) = phi(k) - compute_eq_phi(dop_left);
+        r(k) = phi(k) - compute_eq_phi(dop_left);        
+        r(N + k) = n(k) - abs(dop_left);        
+        r(2*N + k) = p(k) - abs(n_int*n_int/dop_left);        
         jac(k, k) = 1.0; 
+        jac(N + k, N + k) = 1.0; 
+        jac(2*N + k, 2*N + k) = 1.0; 
+
         // right boundary      
         i = Nx;            
         k = ijTok(i, j);
-        r(k) = phi(k) - compute_eq_phi(dop_right);
+        r(k) = phi(k) - compute_eq_phi(dop_right) - bias;
+        r(N + k) = n(k) - abs(n_int*n_int/dop_right);
+        r(2*N + k) = p(k) - abs(dop_right);        
         jac(k, k) = 1.0; 
+        jac(N + k, N + k) = 1.0; 
+        jac(2*N + k, 2*N + k) = 1.0;                             
     }        
     
     double ion_term = 0.0;
@@ -211,11 +216,11 @@ vec solve_phi(double boundary_potential, vec &phi_0)
     vec log_residuals(num_iters, arma::fill::zeros);
     vec log_deltas(num_iters, arma::fill::zeros);
         
-    vec r(N + 1, arma::fill::zeros);
-    sp_mat jac(N + 1, N + 1);
+    vec r(3*N + 1, arma::fill::zeros);
+    sp_mat jac(3*N + 1, 3*N + 1);
     jac = jac.zeros();    
     
-    vec phi_k(N + 1, arma::fill::zeros);     
+    vec phi_k(3*N + 1, arma::fill::zeros);     
     phi_k = phi_0;
 
     for (int k=0; k<num_iters; k++)
@@ -226,14 +231,14 @@ vec solve_phi(double boundary_potential, vec &phi_0)
         // xs.row(i) = x_i.t();         
         // residuals.row(i) = residual.t();     
         //residual.print("residual: "); 
-        sp_mat jac_part = jac(span(1, N), span(1, N));  
+        sp_mat jac_part = jac(span(1, 3*N), span(1, 3*N));  
 
         superlu_opts opts;
         opts.allow_ugly  = true;
         opts.equilibrate = true;
         //opts.refine = superlu_opts::REF_DOUBLE;
 
-        vec delta_phi_k = arma::spsolve(jac_part, -r(span(1, N)));
+        vec delta_phi_k = arma::spsolve(jac_part, -r(span(1, 3*N)));
         //phi_i(span(1, N - 1 - 1)) += delta_phi_i;                
         phi_k(span(1, N)) += delta_phi_k;                
         
@@ -337,25 +342,22 @@ void fill_initial(vec &phi, string method)
 
 int main() {    
 
-    double start_potential = 0;    
+    double bias = 0;    
 
-    vec one_vector(N+1, arma::fill::ones);
-    vec phi_0(N+1, arma::fill::zeros);
-    fill_initial(phi_0, "uniform");
+    vec one_vector(3*N+1, arma::fill::ones);
+    vec phi_0(3*N+1, arma::fill::zeros);
+    //fill_initial(phi_0, "uniform");
     //fill_initial(phi_0, "random");
     //fill_initial(phi_0, "linear");
     //for (int i=0; i<10; i++)
     {        
         int i = 0;
-        vec phi = solve_phi(start_potential + (0.1*i), phi_0); 
+        vec phi = solve_phi(bias + (0.1*i), phi_0); 
         phi_0 = phi;   
         
-        std::string log = fmt::format("BD {:.2f} V \n", start_potential + (0.1*i));            
+        std::string log = fmt::format("BD {:.2f} V \n", bias + (0.1*i));            
         cout << log;        
-
-        plot_args args;
-        args.total_width = total_width;
-        args.N = N;    
+           
         vec n(N+1, arma::fill::zeros);
         n(span(1, N)) = n_int * exp(phi(span(1, N)) / thermal);
         n /= 1e6;        
