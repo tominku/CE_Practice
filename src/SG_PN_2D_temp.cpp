@@ -190,7 +190,7 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double bias)
             // double Jn_ijp = n_ijp*B(phi_diff_jpj/thermal) - n_ij*B(-phi_diff_jpj/thermal);
             // double Jn_ijm = n_ij*B(phi_diff_jjm/thermal) - n_ijm*B(-phi_diff_jjm/thermal);
             //r(N + k) = s_ipj*Jn_ipj - s_imj*Jn_imj + s_ijp*Jn_ijp - s_ijm*Jn_ijm;
-            r(N + k) = s_ipj*Jn_ipj - s_imj*Jn_imj;
+            r(N + k) = s_ipj*Jn_ipj + s_imj*Jn_imj;
             r(N + k) /= dop_left;
 
             // Jacobian for the SG (n)

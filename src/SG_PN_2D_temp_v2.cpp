@@ -18,19 +18,9 @@ double n_int = 1.0*1e16;
 double T = 300;    
 double thermal = k_B * T / q;
 
-double left_part_width = 1e-8;
-double center_part_width = 4e-8;
-double total_width = left_part_width*2 + center_part_width;
-//double deltaX = (total_width) / (N-1); // in meter  
+double left_part_width = 2e-7;
+double total_width = left_part_width*2;
 double deltaX = total_width / (Nx-1); // in meter  
-
-double dop_left = 5e25; // in m^3
-double dop_center = 2e23; // in m^3
-double dop_avg = (dop_left + dop_center) / 2.0;
-double dop_right = dop_left;
-int interface1_i = round(left_part_width/deltaX) + 1;
-int interface2_i = round((left_part_width + center_part_width)/deltaX) + 1;
-
 double total_height = 0.8e-7;
 double deltaY = (total_height) / (Ny-1); // in meter  
 
@@ -47,15 +37,15 @@ double deltaY = (total_height) / (Ny-1); // in meter
 #define n_at(i, j, var_name) (index_exist(i, j) ? var_name(N + ijTok(i, j)) : 0)
 #define p_at(i, j, var_name) (index_exist(i, j) ? var_name(2*N + ijTok(i, j)) : 0)
 
-const string subject_name = "PN_nnn_SG";
+const string subject_name = "PN_2D_SG";
 
-// double dop_left = 5e24; // in m^3
-// // double dop_center = 2e23; // in m^3
-// //double dop_left = 5e23; // in m^3
-// double dop_right = -2e24;
+double dop_left = 5e24; // in m^3
+// double dop_center = 2e23; // in m^3
+//double dop_left = 5e23; // in m^3
+double dop_right = -2e24;
 //double dop_right = -2e23;
 
-//int interface_i = round(left_part_width/deltaX) + 1;
+int interface_i = round(left_part_width/deltaX) + 1;
 vec one_vector(3*N, fill::ones);
 
 double B(double x);
@@ -95,8 +85,8 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double bias)
         i = Nx;            
         k = ijTok(i, j);
         r(k) = phi_at(i, j, phi_n_p) - compute_eq_phi(dop_right) - bias;
-        r(N + k) = n_at(i, j, phi_n_p) - abs(dop_right);
-        r(2*N + k) = p_at(i, j, phi_n_p) - abs(n_int*n_int/dop_right);
+        r(N + k) = n_at(i, j, phi_n_p) - abs(n_int*n_int/dop_right);
+        r(2*N + k) = p_at(i, j, phi_n_p) - abs(dop_right);        
         jac(k, k) = 1.0; 
         jac(N + k, N + k) = 1.0; 
         jac(2*N + k, 2*N + k) = 1.0;                             
@@ -111,18 +101,14 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double bias)
             int k = ijTok(i, j);
             double phi_ij = phi_at(i, j, phi_n_p);
             double n_ij = n_at(i, j, phi_n_p);
-            double p_ij = p_at(i, j, phi_n_p);                             
+            double p_ij = p_at(i, j, phi_n_p);                 
 
-            if (i < interface1_i)
-                ion_term = dop_left;
-            else if (i == interface1_i)
-                ion_term = 0.5*(dop_left) + 0.5*(dop_center);                
-            else if (i > interface1_i & i < interface2_i)
-                ion_term = dop_center;                
-            else if (i == interface2_i)
-                ion_term = 0.5*(dop_center) + 0.5*(dop_right);                                
-            else if (i > interface2_i)
-                ion_term = dop_right;
+            if (i < interface_i)                                                    
+                ion_term = dop_left;                                                       
+            else if (i == interface_i)            
+                ion_term = 0.5*(dop_left) + 0.5*(dop_right);                                              
+            else if (i > interface_i)            
+                ion_term = dop_right;                                                             
 
             double phi_ipj = phi_at(i+1, j, phi_n_p);                           
             double phi_imj = phi_at(i-1, j, phi_n_p);                           
@@ -176,7 +162,7 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double bias)
             r(k) = s_ipj*D_ipj + s_imj*D_imj;
             r(k) -= V*q*(ion_term - n_ij + p_ij);             
             
-            r(k) *= deltaX;
+            //r(k) *= deltaX;
             // Jacobian for the Poisson Equation
             // jac(k, k) = s_ipj*eps_ipj(i, j)/deltaX - s_imj*eps_imj(i, j)/deltaX +
             //     s_ijp*eps_ijp(i, j)/deltaY - s_ijm*eps_ijm(i, j)/deltaY;            
@@ -185,9 +171,9 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double bias)
             jac(k, ijTok(i+1, j)) = - s_ipj*eps_ipj(i, j) / deltaX;                        
             jac(k, ijTok(i-1, j)) = s_imj*eps_imj(i, j) / deltaX;   
 
-            jac(k, k) *= deltaX;
-            jac(k, ijTok(i+1, j)) *= deltaX;
-            jac(k, ijTok(i-1, j)) *= deltaX;
+            // jac(k, k) *= deltaX;
+            // jac(k, ijTok(i+1, j)) *= deltaX;
+            // jac(k, ijTok(i-1, j)) *= deltaX;
             // if (index_exist(i, j+1))
             //     jac(k, ijTok(i, j+1)) = - s_ijp*eps_ijp(i, j) / deltaY;
             // if (index_exist(i, j-1))                        
@@ -195,8 +181,8 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double bias)
             jac(k, N + ijTok(i, j)) =  q*V; // r w.r.t. n                        
             jac(k, 2*N + ijTok(i, j)) = - q*V; // r w.r.t. p    
 
-            jac(k, N + ijTok(i, j)) *= deltaX;
-            jac(k, 2*N + ijTok(i, j)) *= deltaX;
+            // jac(k, N + ijTok(i, j)) *= deltaX;
+            // jac(k, 2*N + ijTok(i, j)) *= deltaX;
 
             // Residual for the SG (n)     
             double Jn_ipj = n_ipj*B(phi_diff_ipi/thermal) - n_ij*B(-phi_diff_ipi/thermal);
@@ -273,7 +259,7 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double bias)
 
 vec solve_phi(double boundary_potential, vec &phi_n_p_0, sp_mat &C)
 {                
-    int num_iters = 50;    
+    int num_iters = 15;    
     printf("boundary voltage: %f \n", boundary_potential);
     auto start = high_resolution_clock::now();
     vec log_residuals(num_iters, arma::fill::zeros);
@@ -322,7 +308,7 @@ vec solve_phi(double boundary_potential, vec &phi_n_p_0, sp_mat &C)
         //if (i % 1 == 0)
         //printf("[iter %d]   detal_x: %f   residual: %f\n", i, max(abs(delta_phi_i)), max(abs(residual)));  
         double log_residual = log10(max(abs(r)));          
-        double log_delta = log10(max(abs(update_vector)));        
+        double log_delta = log10(max(abs(update_vector(span(0, N-1)))));        
         log_residuals[k] = log_residual;
         log_deltas[k] = log_delta;
 
@@ -362,72 +348,55 @@ void save_current_densities(vec &phi_n)
 }
 
 
-// void fill_initial(vec &phi, string method)
-// {        
-//     double phi_1 = compute_eq_phi(dop_left);
-//     double phi_Nx = compute_eq_phi(dop_right);
-//     for (int j=1; j<=Ny; j++)
-//     {
-//         for (int i=1; i<=Nx; i++)
-//         { 
-//             int k = ijTok(i, j);            
-//             if (i==1)  
-//                 phi(k) = phi_1;
-//             else if (i==Nx)                            
-//                 phi(k) = phi_Nx;
-//             else
-//             {
-//                 if (method.compare("uniform") == 0)
-//                 {
-//                     if (i <= interface_i)                
-//                         phi(k) = phi_1;
-//                     else
-//                         phi(k) = phi_Nx;                            
-//                 }
-//                 else if (method.compare("linear") == 0)
-//                 {
-//                     phi(k) = phi_1 + (phi_Nx - phi_1) * ((i-1)/(Nx-1));
-//                 }
-//                 else if (method.compare("random") == 0)
-//                 {
-//                     double r = static_cast <double> (rand()) / static_cast <double> (RAND_MAX);
-//                     phi(k) = r;
-//                 }
-//             }
-//         }
-//      }      
-// }
+void fill_initial(vec &phi, string method)
+{        
+    double phi_1 = compute_eq_phi(dop_left);
+    double phi_Nx = compute_eq_phi(dop_right);
+    for (int j=1; j<=Ny; j++)
+    {
+        for (int i=1; i<=Nx; i++)
+        { 
+            int k = ijTok(i, j);            
+            if (i==1)  
+                phi(k) = phi_1;
+            else if (i==Nx)                            
+                phi(k) = phi_Nx;
+            else
+            {
+                if (method.compare("uniform") == 0)
+                {
+                    if (i <= interface_i)                
+                        phi(k) = phi_1;
+                    else
+                        phi(k) = phi_Nx;                            
+                }
+                else if (method.compare("linear") == 0)
+                {
+                    phi(k) = phi_1 + (phi_Nx - phi_1) * ((i-1)/(Nx-1));
+                }
+                else if (method.compare("random") == 0)
+                {
+                    double r = static_cast <double> (rand()) / static_cast <double> (RAND_MAX);
+                    phi(k) = r;
+                }
+            }
+        }
+     }      
+}
 
 
 int main() {    
 
-    double bias = 0.0;    
+    double bias = -0.4;    
     vec phi_n_p_0(3*N+1, arma::fill::zeros);
-
-    // phi_n_p_0(span(1, N)) = thermal * log(dop_left/n_int) * one_vector(span(1, N));
-    // phi_n_p_0(span(N+1, 2*N)) = dop_left * one_vector(span(1, N));    
-
-    for (int j=1; j<=Ny; ++j)
-    {        
-        for (int i=1; i<=Nx; ++i)
-        {
-            //bool b = index_exist(i, j);
-            //printf("index exist: %d %d, %d \n", i, j, b);
-            int k = ijTok(i, j);        
-            phi_n_p_0(k) = thermal * log(dop_left/n_int);
-            phi_n_p_0(N + k) = dop_left;
-            //phi_n_p_0(k)
-        }
-    }     
-
     //fill_initial(phi_n_p_0, "uniform");
     //fill_initial(phi_n_p_0, "random");
     //fill_initial(phi_n_p_0, "linear");
-    bool load_initial_solution_from_NP = false;    
+    bool load_initial_solution_from_NP = true;    
     if (load_initial_solution_from_NP)
     {
         string subject_name = "PN_2D_NP";
-        std::string file_name = fmt::format("{}_phi_{:.2f}.csv", subject_name, .0); 
+        std::string file_name = fmt::format("{}_phi_{:.2f}.csv", subject_name, 0.0); 
         cout << file_name << "\n";        
         vec phi_from_NP(N, fill::zeros);
         phi_from_NP.load(file_name);
@@ -471,13 +440,13 @@ int main() {
         vec holeDensity = phi_n_p_0(span(2*N+1, 3*N));        
         holeDensity /= 1e6;
         
-        std::string phi_file_name = fmt::format("{}_phi_{:.2f}.csv", subject_name, (0.1*i));
+        std::string phi_file_name = fmt::format("{}_phi_{:.2f}.csv", subject_name, bias+(0.1*i));
         phi.save(phi_file_name, csv_ascii);                
 
-        std::string n_file_name = fmt::format("{}_eDensity_{:.2f}.csv", subject_name, (0.1*i));
+        std::string n_file_name = fmt::format("{}_eDensity_{:.2f}.csv", subject_name, bias+(0.1*i));
         eDensity.save(n_file_name, csv_ascii);                
 
-        std::string h_file_name = fmt::format("{}_holeDensity_{:.2f}.csv", subject_name, (0.1*i));
+        std::string h_file_name = fmt::format("{}_holeDensity_{:.2f}.csv", subject_name, bias+(0.1*i));
         holeDensity.save(h_file_name, csv_ascii);                                     
 
         //save_current_densities(phi_n);
