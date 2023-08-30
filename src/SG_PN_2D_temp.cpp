@@ -162,18 +162,27 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double bias)
             r(k) = s_ipj*D_ipj + s_imj*D_imj;
             r(k) -= V*q*(ion_term - n_ij + p_ij);             
             
+            r(k) *= deltaX;
             // Jacobian for the Poisson Equation
-            jac(k, k) = s_ipj*eps_ipj(i, j)/deltaX - s_imj*eps_imj(i, j)/deltaX +
-                s_ijp*eps_ijp(i, j)/deltaY - s_ijm*eps_ijm(i, j)/deltaY;            
-            jac(k, k) += V*n_int*q*(1.0/thermal)*( exp(phi_ij/thermal) + exp(-phi_ij/thermal) );                        
+            // jac(k, k) = s_ipj*eps_ipj(i, j)/deltaX - s_imj*eps_imj(i, j)/deltaX +
+            //     s_ijp*eps_ijp(i, j)/deltaY - s_ijm*eps_ijm(i, j)/deltaY;            
+            jac(k, k) = s_ipj*eps_ipj(i, j)/deltaX - s_imj*eps_imj(i, j)/deltaX;                
+            
             jac(k, ijTok(i+1, j)) = - s_ipj*eps_ipj(i, j) / deltaX;                        
             jac(k, ijTok(i-1, j)) = s_imj*eps_imj(i, j) / deltaX;   
+
+            jac(k, k) *= deltaX;
+            jac(k, ijTok(i+1, j)) *= deltaX;
+            jac(k, ijTok(i-1, j)) *= deltaX;
             // if (index_exist(i, j+1))
             //     jac(k, ijTok(i, j+1)) = - s_ijp*eps_ijp(i, j) / deltaY;
             // if (index_exist(i, j-1))                        
             //     jac(k, ijTok(i, j-1)) = s_ijm*eps_ijm(i, j) / deltaY;                                                                      
             jac(k, N + ijTok(i, j)) =  q*V; // r w.r.t. n                        
             jac(k, 2*N + ijTok(i, j)) = - q*V; // r w.r.t. p    
+
+            jac(k, N + ijTok(i, j)) *= deltaX;
+            jac(k, 2*N + ijTok(i, j)) *= deltaX;
 
             // Residual for the SG (n)     
             double Jn_ipj = n_ipj*B(phi_diff_ipi/thermal) - n_ij*B(-phi_diff_ipi/thermal);
@@ -392,6 +401,7 @@ int main() {
     }
 
     sp_mat C(3*N, 3*N);        
+    C.zeros();
     for (int m=0; m<N; m++)
         C(m, m) = thermal;
     for (int m=N; m<2*N; m++)
