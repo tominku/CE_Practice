@@ -159,6 +159,11 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double boundary_potential
             jac(k, N + ijTok(i, j)) =  q*V; // r w.r.t. n                        
             jac(k, 2*N + ijTok(i, j)) = - q*V; // r w.r.t. p    
 
+            s_ipj = abs(s_ipj);
+            s_imj = abs(s_imj);
+            s_ijp = abs(s_ijp);
+            s_ijm = abs(s_ijm);
+
             // Residual for the SG (n)     
             double Jn_ipj = n_ipj*B(phi_diff_ipi/thermal) - n_ij*B(-phi_diff_ipi/thermal);
             double Jn_imj = n_ij*B(phi_diff_iim/thermal) - n_imj*B(-phi_diff_iim/thermal);
