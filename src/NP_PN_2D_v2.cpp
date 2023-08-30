@@ -23,9 +23,9 @@ double total_width = left_part_width*2;
 double deltaX = total_width / (Nx-1); // in meter  
 double total_height = 0.8e-7;
 double deltaY = (total_height) / (Ny-1); // in meter  
-double coeff = deltaX*deltaY*q;
-const double DelYDelX = deltaY / deltaX;
-const double DelXDelY = deltaX / deltaY;
+//double coeff = deltaX*deltaY*q;
+//const double DelYDelX = deltaY / deltaX;
+//const double DelXDelY = deltaX / deltaY;
 
 #define ijTok(i, j) (Nx*(j-1) + i)
 //#define eps_ipj(i, j) ((i+0.5) < Ny ? eps_si : 0)
@@ -134,7 +134,7 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi, double boundary_potential)
             double D_ijm = -eps_ijm(i,j) * phi_diff_jjm / deltaY;
                         
             r(k) = s_ipj*D_ipj + s_imj*D_imj + s_ijp*D_ijp + s_ijm*D_ijm;            
-            r(k) -= V*q*(ion_term - n_int*(exp(phi_ij/thermal) + exp(-phi_ij/thermal)));                
+            r(k) -= V*q*(ion_term - n_int*(exp(phi_ij/thermal) - exp(-phi_ij/thermal)));                
             
             jac(k, k) = s_ipj*eps_ipj(i, j)/deltaX - s_imj*eps_imj(i, j)/deltaX +
                 s_ijp*eps_ijp(i, j)/deltaY - s_ijm*eps_ijm(i, j)/deltaY;            
