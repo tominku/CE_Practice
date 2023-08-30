@@ -28,14 +28,14 @@ const double DelYDelX = deltaY / deltaX;
 const double DelXDelY = deltaX / deltaY;
 
 #define ijTok(i, j) (Nx*(j-1) + i)
-//#define eps_i_p(i, j) ((i+0.5) < Ny ? eps_si : 0)
-//#define eps_i_m(i, j) ((i-0.5) > 1 ? eps_si : 0)
-#define eps_i_p(i, j) eps_si
-#define eps_i_m(i, j) eps_si
-#define eps_j_p(i, j) eps_si
-#define eps_j_m(i, j) eps_si
-//#define var_at(i, j, phi_name, phi_center_name) ((i) > 1 && (i) < Ny ? phi_name(ijTok(i, j)) : phi_center_name)
+//#define eps_ipj(i, j) ((i+0.5) < Ny ? eps_si : 0)
+//#define eps_imj(i, j) ((i-0.5) > 1 ? eps_si : 0)
+#define eps_ipj(i, j) eps_si
+#define eps_imj(i, j) eps_si
+#define eps_ijp(i, j) eps_si
+#define eps_ijm(i, j) eps_si
 #define var_at(i, j, var_name, var_center_name) ((j >= 1 && j <= Ny) ? var_name(ijTok(i, j)) : var_center_name)
+#define index_exist(i, j) ((j >= 1 && j <= Ny && i >= 1 && i <= Nx) ? true : false)
 
 const string subject_name = "PN_2D_SG";
 
@@ -97,19 +97,14 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double boundary_potential
             double n_ij = n(k);
             double p_ij = p(k);            
             int k_n = N + k;
-            int p_n = 2*N + k;
-            
-            double s_ipj = deltaY;
-            double s_imj = deltaY;
-            double s_ijp = deltaX;
-            double s_ijm = deltaX;
+            int p_n = 2*N + k;        
 
             if (i < interface_i)                                                    
-                ion_term = -dop_left;                                                       
+                ion_term = dop_left;                                                       
             else if (i == interface_i)            
-                ion_term = 0.5*(-dop_left) + 0.5*(-dop_right);                                              
+                ion_term = 0.5*(dop_left) + 0.5*(dop_right);                                              
             else if (i > interface_i)            
-                ion_term = -dop_right;                                                             
+                ion_term = dop_right;                                                             
 
             double phi_ipj = var_at(i+1, j, phi, phi_ij);                           
             double phi_imj = var_at(i-1, j, phi, phi_ij);                           
@@ -126,49 +121,43 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double boundary_potential
             double p_ijp = var_at(i, j+1, p, p_ij);                           
             double p_ijm = var_at(i, j-1, p, p_ij);                                       
 
-            double eff_ipj = 1.0;
-            double eff_imj = 1.0;
-            double eff_ijp = 1.0;
-            double eff_ijm = 1.0;
-            double total_eff = 1.0;
-            if (j == 1)
-            {
-                eff_ipj = 0.5;
-                eff_imj = 0.5;
-                eff_ijm = 0.0;
-                total_eff = 0.5;
-            }            
-            else if(j == Ny)
-            {
-                eff_ipj = 0.5;
-                eff_imj = 0.5;
-                eff_ijp = 0.0;
-                total_eff = 0.5;
-            }
-            
             double phi_diff_ipi = phi_ipj - phi_ij;
             double phi_diff_iim = phi_ij - phi_imj;
             double phi_diff_jpj = phi_ijp - phi_ij;
             double phi_diff_jjm = phi_ij - phi_ijm;
 
+            double s_ipj = deltaY;
+            double s_imj = - deltaY;
+            double s_ijp = deltaX;
+            double s_ijm = - deltaX;
+            double V = deltaX*deltaY;
+
+            if (j == 1)            
+                s_ipj *= 0.5, s_imj *= 0.5, s_ijm = 0, V *= 0.5;            
+            else if(j == Ny)                  
+                s_ipj *= 0.5, s_imj *= 0.5, s_ijp = 0, V *= 0.5;            
+            
+            double D_ipj = -eps_ipj(i,j) * phi_diff_ipi / deltaX;
+            double D_imj = -eps_imj(i,j) * phi_diff_iim / deltaX;
+            double D_ijp = -eps_ijp(i,j) * phi_diff_jpj / deltaY;
+            double D_ijm = -eps_ijm(i,j) * phi_diff_jjm / deltaY;        
+
             // Residual for the Poisson Equation
-            r(k) = - eff_ipj*DelYDelX*eps_i_p(i, j)*(phi_diff_ipi) +
-                    eff_imj*DelYDelX*eps_i_m(i, j)*(phi_diff_iim) -
-                    eff_ijp*DelXDelY*eps_j_p(i, j)*(phi_diff_jpj) +
-                    eff_ijm*DelXDelY*eps_j_m(i, j)*(phi_diff_jjm);            
-            r(k) += total_eff*coeff*(ion_term + n(k) - p(k));            
+            r(k) = s_ipj*D_ipj + s_imj*D_imj + s_ijp*D_ijp + s_ijm*D_ijm;            
+            r(k) -= V*q*(ion_term - n_ij + p_ij);             
             
             // Jacobian for the Poisson Equation
-            jac(k, k) = eff_ipj*eps_i_p(i, j)*DelYDelX + eff_imj*eps_i_m(i, j)*DelYDelX +
-                eff_ijp*eps_j_p(i, j)*DelXDelY + eff_ijm*eps_j_m(i, j)*DelXDelY;            
-            jac(k, ijTok(i+1, j)) = - eff_ipj*eps_i_p(i, j) * DelYDelX;                        
-            jac(k, ijTok(i-1, j)) = - eff_imj*eps_i_m(i, j) * DelYDelX;   
-            if (eff_ijp > 0)
-                jac(k, ijTok(i, j+1)) = - eff_ijp*eps_j_p(i, j) * DelXDelY;
-            if (eff_ijm > 0)                                
-                jac(k, ijTok(i, j-1)) = - eff_ijm*eps_j_m(i, j) * DelXDelY;                                                         
-            jac(k, N + ijTok(i, j)) =  total_eff*coeff; // r w.r.t. n                        
-            jac(k, 2*N + ijTok(i, j)) = - total_eff*coeff; // r w.r.t. p    
+            jac(k, k) = s_ipj*eps_ipj(i, j)/deltaX - s_imj*eps_imj(i, j)/deltaX +
+                s_ijp*eps_ijp(i, j)/deltaY - s_ijm*eps_ijm(i, j)/deltaY;            
+            jac(k, k) += V*n_int*q*(1.0/thermal)*( exp(phi_ij/thermal) + exp(-phi_ij/thermal) );                        
+            jac(k, ijTok(i+1, j)) = - s_ipj*eps_ipj(i, j) / deltaX;                        
+            jac(k, ijTok(i-1, j)) = s_imj*eps_imj(i, j) / deltaX;   
+            if (index_exist(i, j+1))
+                jac(k, ijTok(i, j+1)) = - s_ijp*eps_ijp(i, j) / deltaY;
+            if (index_exist(i, j-1))                        
+                jac(k, ijTok(i, j-1)) = s_ijm*eps_ijm(i, j) / deltaY;                                                                      
+            jac(k, N + ijTok(i, j)) =  q*V; // r w.r.t. n                        
+            jac(k, 2*N + ijTok(i, j)) = - q*V; // r w.r.t. p    
 
             // Residual for the SG (n)     
             double Jn_ipj = n_ipj*B(phi_diff_ipi/thermal) - n_ij*B(-phi_diff_ipi/thermal);

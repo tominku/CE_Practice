@@ -10,8 +10,8 @@
 // #include <fmt/format.h>
 using namespace arma; 
 
-const int Nx = 201;
-const int Ny = 41;
+const int Nx = 101;
+const int Ny = 21;
 const int N = Nx * Ny;
 //double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
 double n_int = 1.0*1e16;
@@ -23,9 +23,6 @@ double total_width = left_part_width*2;
 double deltaX = total_width / (Nx-1); // in meter  
 double total_height = 0.8e-7;
 double deltaY = (total_height) / (Ny-1); // in meter  
-//double coeff = deltaX*deltaY*q;
-//const double DelYDelX = deltaY / deltaX;
-//const double DelXDelY = deltaX / deltaY;
 
 #define ijTok(i, j) (Nx*(j-1) + i)
 //#define eps_ipj(i, j) ((i+0.5) < Ny ? eps_si : 0)
@@ -40,7 +37,7 @@ double deltaY = (total_height) / (Ny-1); // in meter
 
 const string subject_name = "PN_2D_NP";
 
-double dop_left = 5e25; // in m^3
+double dop_left = 5e24; // in m^3
 // double dop_center = 2e23; // in m^3
 //double dop_left = 5e23; // in m^3
 double dop_right = -2e24;
@@ -113,20 +110,10 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi, double boundary_potential)
             double s_ijm = - deltaX;
             double V = deltaX*deltaY;
 
-            if (j == 1)
-            {
-                s_ipj *= 0.5;
-                s_imj *= 0.5;
-                s_ijm = 0;
-                V *= 0.5;
-            }
-            else if(j == Ny)      
-            {      
-                s_ipj *= 0.5;
-                s_imj *= 0.5;
-                s_ijp = 0;
-                V *= 0.5;
-            }
+            if (j == 1)            
+                s_ipj *= 0.5, s_imj *= 0.5, s_ijm = 0, V *= 0.5;            
+            else if(j == Ny)                  
+                s_ipj *= 0.5, s_imj *= 0.5, s_ijp = 0, V *= 0.5;            
             
             double D_ipj = -eps_ipj(i,j) * phi_diff_ipi / deltaX;
             double D_imj = -eps_imj(i,j) * phi_diff_iim / deltaX;
