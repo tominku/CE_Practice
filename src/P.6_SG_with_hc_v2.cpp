@@ -149,17 +149,19 @@ void r_and_jacobian(vec &r, mat &jac, vec &phi_n_p, double bias)
         jac(i, i-1) /= dop_avg;             
 
         // continuity w.r.t. phis
-        jac(i, i+1-offset) = 
+        double a = jac(i, i+1-offset) = 
             phi_n_p(i+1)*deriveB((phi_n_p(i+1-offset) - phi_n_p(i-offset)) / thermal) +
             phi_n_p(i)*deriveB((phi_n_p(i-offset) - phi_n_p(i+1-offset)) / thermal);
         
-        jac(i, i-offset) = -jac(i, i+1-offset) - 
-            phi_n_p(i)*deriveB((phi_n_p(i-offset) - phi_n_p(i-1-offset)) / thermal) -
-            phi_n_p(i-1)*deriveB((phi_n_p(i-1-offset) - phi_n_p(i-offset)) / thermal);
+        // jac(i, i-offset) = -jac(i, i+1-offset) - 
+        //     phi_n_p(i)*deriveB((phi_n_p(i-offset) - phi_n_p(i-1-offset)) / thermal) -
+        //     phi_n_p(i-1)*deriveB((phi_n_p(i-1-offset) - phi_n_p(i-offset)) / thermal);
         
-        jac(i, i-1-offset) = 
+        double b = jac(i, i-1-offset) = 
             phi_n_p(i)*deriveB((phi_n_p(i-offset) - phi_n_p(i-1-offset)) / thermal) +
             phi_n_p(i-1)*deriveB((phi_n_p(i-1-offset) - phi_n_p(i-offset)) / thermal);
+
+        jac(i, i-offset) = - a - b;
 
         jac(i, i+1-offset) /= thermal*dop_avg;
         jac(i, i-offset) /= thermal*dop_avg;
@@ -187,17 +189,16 @@ void r_and_jacobian(vec &r, mat &jac, vec &phi_n_p, double bias)
         jac(i+offset, i-1+offset) /= dop_avg;            
 
         // hole continuity w.r.t. phis
-        jac(i+offset, i+1-offset) = 
+        a = jac(i+offset, i+1-offset) = 
             phi_n_p(i+1+offset)*deriveB(-(phi_n_p(i+1-offset) - phi_n_p(i-offset)) / thermal) +
             phi_n_p(i+offset)*deriveB(-(phi_n_p(i-offset) - phi_n_p(i+1-offset)) / thermal);
         
-        jac(i+offset, i-offset) = -jac(i+offset, i+1-offset) - 
-            phi_n_p(i+offset)*deriveB(-(phi_n_p(i-offset) - phi_n_p(i-1-offset)) / thermal) -
-            phi_n_p(i-1+offset)*deriveB(-(phi_n_p(i-1-offset) - phi_n_p(i-offset)) / thermal);
-        
-        jac(i+offset, i-1-offset) = 
+        b = jac(i+offset, i-1-offset) = 
             phi_n_p(i+offset)*deriveB(-(phi_n_p(i-offset) - phi_n_p(i-1-offset)) / thermal) +
             phi_n_p(i-1+offset)*deriveB(-(phi_n_p(i-1-offset) - phi_n_p(i-offset)) / thermal);
+
+        jac(i+offset, i-offset) = - a - b;
+                
 
         jac(i+offset, i+1-offset) /= thermal*dop_avg;
         jac(i+offset, i-offset) /= thermal*dop_avg;

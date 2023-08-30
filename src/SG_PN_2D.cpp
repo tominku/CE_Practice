@@ -189,6 +189,13 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double bias)
                 jac(N + k, N + ijTok(i, j-1)) = -s_ijm*B(-phi_diff_jjm/thermal);
             jac(N + k, N + ijTok(i, j)) = - s_ipj*B(-phi_diff_ipi/thermal) + s_imj*B(phi_diff_iim/thermal) - s_ijp*B(-phi_diff_jpj/thermal) + s_ijm*B(phi_diff_jjm/thermal);
 
+            // Residual for the SG (p)     
+            double Jp_ipj = -p_ipj*B(-phi_diff_ipi/thermal) + p_ij*B(phi_diff_ipi/thermal);
+            double Jp_imj = -p_ij*B(-phi_diff_iim/thermal) + p_imj*B(phi_diff_iim/thermal);
+            double Jp_ijp = -p_ijp*B(-phi_diff_jpj/thermal) + p_ij*B(phi_diff_jpj/thermal);
+            double Jp_ijm = -p_ij*B(-phi_diff_jjm/thermal) + p_ijm*B(phi_diff_jjm/thermal);
+            r(2*N + k) = s_ipj*Jp_ipj + s_imj*Jp_imj + s_ijp*Jp_ijp + s_ijm*Jp_ijm;
+
             // Jacobian for the SG (p)
             // w.r.t. phis
             jac(2*N + k, ijTok(i+1, j)) = a = s_ipj*(p_ij*dB(phi_diff_ipi/thermal) + p_ipj*dB(-phi_diff_ipi/thermal)) / thermal;                      
