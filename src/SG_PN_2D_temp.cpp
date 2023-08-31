@@ -122,8 +122,8 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double bias)
 
             double p_ipj = p_at(i+1, j, phi_n_p);                           
             double p_imj = p_at(i-1, j, phi_n_p);                           
-            // double p_ijp = p_at(i, j+1, phi_n_p);                           
-            // double p_ijm = p_at(i, j-1, phi_n_p);                                       
+            double p_ijp = p_at(i, j+1, phi_n_p);                           
+            double p_ijm = p_at(i, j-1, phi_n_p);                                       
 
             double phi_diff_ipi = phi_ipj - phi_ij;
             double phi_diff_iim = phi_ij - phi_imj;
@@ -224,6 +224,8 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double bias)
             // Residual for the SG (p)    
             double Jp_ipj = -p_ipj*B(-phi_diff_ipi/thermal) + p_ij*B(phi_diff_ipi/thermal);
             double Jp_imj = -p_ij*B(-phi_diff_iim/thermal) + p_imj*B(phi_diff_iim/thermal);            
+            double Jp_ijp = -p_ijp*B(-phi_diff_ipi/thermal) + p_ij*B(phi_diff_ipi/thermal);
+            double Jp_ijm = -p_ij*B(-phi_diff_iim/thermal) + p_ijm*B(phi_diff_iim/thermal);            
             r(2*N + k) = s_ipj*Jp_ipj + s_imj*Jp_imj;
             r(2*N + k) /= dop_left;
 

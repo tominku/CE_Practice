@@ -36,7 +36,6 @@ double deltaY = (total_height) / (Ny-1); // in meter
 #define phi_at(i, j, var_name) (index_exist(i, j) ? var_name(ijTok(i, j)) : 0)
 #define n_at(i, j, var_name) (index_exist(i, j) ? var_name(N + ijTok(i, j)) : 0)
 #define p_at(i, j, var_name) (index_exist(i, j) ? var_name(2*N + ijTok(i, j)) : 0)
-#define INCLUDE_VFLUX = true
 
 const string subject_name = "PN_2D_SG";
 
@@ -113,23 +112,23 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double bias)
 
             double phi_ipj = phi_at(i+1, j, phi_n_p);                           
             double phi_imj = phi_at(i-1, j, phi_n_p);                           
-            // double phi_ijp = phi_at(i, j+1, phi_n_p);                           
-            // double phi_ijm = phi_at(i, j-1, phi_n_p);                           
+            double phi_ijp = phi_at(i, j+1, phi_n_p);                           
+            double phi_ijm = phi_at(i, j-1, phi_n_p);                           
 
             double n_ipj = n_at(i+1, j, phi_n_p);                           
             double n_imj = n_at(i-1, j, phi_n_p);                           
-            // double n_ijp = n_at(i, j+1, phi_n_p);                           
-            // double n_ijm = n_at(i, j-1, phi_n_p);                                       
+            double n_ijp = n_at(i, j+1, phi_n_p);                           
+            double n_ijm = n_at(i, j-1, phi_n_p);                                       
 
             double p_ipj = p_at(i+1, j, phi_n_p);                           
             double p_imj = p_at(i-1, j, phi_n_p);                           
-            // double p_ijp = p_at(i, j+1, phi_n_p);                           
-            // double p_ijm = p_at(i, j-1, phi_n_p);                                       
+            double p_ijp = p_at(i, j+1, phi_n_p);                           
+            double p_ijm = p_at(i, j-1, phi_n_p);                                       
 
             double phi_diff_ipi = phi_ipj - phi_ij;
             double phi_diff_iim = phi_ij - phi_imj;
-            // double phi_diff_jpj = phi_ijp - phi_ij;
-            // double phi_diff_jjm = phi_ij - phi_ijm;
+            double phi_diff_jpj = phi_ijp - phi_ij;
+            double phi_diff_jjm = phi_ij - phi_ijm;
 
             deltaY = 1;
             double s_ipj = deltaY;
@@ -155,31 +154,27 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double bias)
             
             double D_ipj = -eps_ipj(i,j) * phi_diff_ipi / deltaX;
             double D_imj = -eps_imj(i,j) * phi_diff_iim / deltaX;
-            
             double D_ijp = -eps_ijp(i,j) * phi_diff_jpj / deltaY;
             double D_ijm = -eps_ijm(i,j) * phi_diff_jjm / deltaY;        
 
             // Residual for the Poisson Equation
-            //r(k) = s_ipj*D_ipj + s_imj*D_imj + s_ijp*D_ijp + s_ijm*D_ijm;            
-            r(k) = s_ipj*D_ipj + s_imj*D_imj;
+            r(k) = s_ipj*D_ipj + s_imj*D_imj + s_ijp*D_ijp + s_ijm*D_ijm;            
+            //r(k) = s_ipj*D_ipj + s_imj*D_imj;
             r(k) -= V*q*(ion_term - n_ij + p_ij);             
-            r(k) /= eps_0;
             
-            //r(k) *= deltaX;
+            r(k) *= deltaX;
             // Jacobian for the Poisson Equation
             // jac(k, k) = s_ipj*eps_ipj(i, j)/deltaX - s_imj*eps_imj(i, j)/deltaX +
             //     s_ijp*eps_ijp(i, j)/deltaY - s_ijm*eps_ijm(i, j)/deltaY;            
             jac(k, k) = s_ipj*eps_ipj(i, j)/deltaX - s_imj*eps_imj(i, j)/deltaX;                
-            jac(k, k) /= eps_0;
             
             jac(k, ijTok(i+1, j)) = - s_ipj*eps_ipj(i, j) / deltaX;                        
             jac(k, ijTok(i-1, j)) = s_imj*eps_imj(i, j) / deltaX;   
-            jac(k, ijTok(i+1, j)) /= eps_0;
-            jac(k, ijTok(i-1, j)) /= eps_0;
 
-            // jac(k, k) *= deltaX;
-            // jac(k, ijTok(i+1, j)) *= deltaX;
-            // jac(k, ijTok(i-1, j)) *= deltaX;
+            jac(k, k) *= deltaX;
+            jac(k, ijTok(i+1, j)) *= deltaX;
+            jac(k, ijTok(i-1, j)) *= deltaX;
+
             // if (index_exist(i, j+1))
             //     jac(k, ijTok(i, j+1)) = - s_ijp*eps_ijp(i, j) / deltaY;
             // if (index_exist(i, j-1))                        
@@ -187,11 +182,8 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double bias)
             jac(k, N + ijTok(i, j)) =  q*V; // r w.r.t. n                        
             jac(k, 2*N + ijTok(i, j)) = - q*V; // r w.r.t. p    
 
-            jac(k, N + ijTok(i, j)) /=  eps_0;
-            jac(k, 2*N + ijTok(i, j)) /=  eps_0;
-
-            // jac(k, N + ijTok(i, j)) *= deltaX;
-            // jac(k, 2*N + ijTok(i, j)) *= deltaX;
+            jac(k, N + ijTok(i, j)) *= deltaX;
+            jac(k, 2*N + ijTok(i, j)) *= deltaX;
 
             // Residual for the SG (n)     
             double Jn_ipj = n_ipj*B(phi_diff_ipi/thermal) - n_ij*B(-phi_diff_ipi/thermal);

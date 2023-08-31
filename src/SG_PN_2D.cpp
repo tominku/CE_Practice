@@ -168,7 +168,7 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double bias)
             double Jn_imj = n_ij*B(phi_diff_iim/thermal) - n_imj*B(-phi_diff_iim/thermal);
             double Jn_ijp = n_ijp*B(phi_diff_jpj/thermal) - n_ij*B(-phi_diff_jpj/thermal);
             double Jn_ijm = n_ij*B(phi_diff_jjm/thermal) - n_ijm*B(-phi_diff_jjm/thermal);
-            r(N + k) = s_ipj*Jn_ipj - s_imj*Jn_imj + s_ijp*Jn_ijp - s_ijm*Jn_ijm;
+            r(N + k) = s_ipj*Jn_ipj + s_imj*Jn_imj + s_ijp*Jn_ijp + s_ijm*Jn_ijm;
 
             // Jacobian for the SG (n)
             // w.r.t. phis
@@ -268,7 +268,7 @@ vec solve_phi(double boundary_potential, vec &phi_n_p_0, sp_mat &C)
         //if (i % 1 == 0)
         //printf("[iter %d]   detal_x: %f   residual: %f\n", i, max(abs(delta_phi_i)), max(abs(residual)));  
         double log_residual = log10(max(abs(r)));          
-        double log_delta = log10(max(abs(update_vector)));        
+        double log_delta = log10(max(abs(update_vector(span(0, N-1)))));        
         log_residuals[k] = log_residual;
         log_deltas[k] = log_delta;
 
@@ -347,7 +347,7 @@ void fill_initial(vec &phi, string method)
 
 int main() {    
 
-    double bias = 0.0;    
+    double bias = 0.1;    
     vec phi_n_p_0(3*N+1, arma::fill::zeros);
     //fill_initial(phi_n_p_0, "uniform");
     //fill_initial(phi_n_p_0, "random");
