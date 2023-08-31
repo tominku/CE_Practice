@@ -39,10 +39,10 @@ double deltaY = (total_height) / (Ny-1); // in meter
 #define p_at(i, j, var_name) (index_exist(i, j) ? var_name(2*N + ijTok(i, j)) : 0)
 #define INCLUDE_VFLUX true
 
-const string subject_name = "nnn_2D_SG";
+const string subject_name = "ppp_2D_SG";
 
-double dop_left = 5e25; // in m^3
-double dop_center = 2e23; // in m^3
+double dop_left = -5e25; // in m^3
+double dop_center = -2e23; // in m^3
 double dop_avg = (dop_left + dop_center) / 2.0;
 double dop_right = dop_left;
 int interface1_i = round(left_part_width/deltaX) + 1;
@@ -76,8 +76,8 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double bias)
         i = 1;      
         int k = ijTok(i, j);
         r(k) = phi_at(i, j, phi_n_p) - compute_eq_phi(dop_left);        
-        r(N + k) = n_at(i, j, phi_n_p) - abs(dop_left);        
-        r(2*N + k) = p_at(i, j, phi_n_p) - abs(n_int*n_int/dop_left);        
+        r(N + k) = n_at(i, j, phi_n_p) - abs(n_int*n_int/dop_left);
+        r(2*N + k) = p_at(i, j, phi_n_p) - abs(dop_left);
         jac(k, k) = 1.0; 
         jac(N + k, N + k) = 1.0; 
         jac(2*N + k, 2*N + k) = 1.0; 
@@ -86,8 +86,8 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double bias)
         i = Nx;            
         k = ijTok(i, j);
         r(k) = phi_at(i, j, phi_n_p) - compute_eq_phi(dop_right) - bias;
-        r(N + k) = n_at(i, j, phi_n_p) - abs(dop_right);
-        r(2*N + k) = p_at(i, j, phi_n_p) - abs(n_int*n_int/dop_right);
+        r(N + k) = n_at(i, j, phi_n_p) - abs(n_int*n_int/dop_right);
+        r(2*N + k) = p_at(i, j, phi_n_p) - abs(dop_right);
         jac(k, k) = 1.0; 
         jac(N + k, N + k) = 1.0; 
         jac(2*N + k, 2*N + k) = 1.0;                              
@@ -270,6 +270,10 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double bias)
 
             // Jacobian for the SG (p)
             // w.r.t. phis
+            a = 0;
+            b = 0;
+            c = 0;
+            d = 0;
             jac(2*N + k, ijTok(i+1, j)) = a = s_ipj*(p_ij*dB(phi_diff_ipi/thermal) + p_ipj*dB(-phi_diff_ipi/thermal)) / thermal;                      
             jac(2*N + k, ijTok(i-1, j)) = b = s_imj*(- p_imj*dB(phi_diff_iim/thermal) - p_ij*dB(-phi_diff_iim/thermal)) / thermal;
             if (INCLUDE_VFLUX)
@@ -431,7 +435,8 @@ int main() {
 
     string setting = fmt::format("deltaX: {}, deltaY: {}", deltaX, deltaY); 
     cout << setting << "\n";        
-    double bias = -0.4;    
+    //double bias = -0.4;    
+    double bias = 1.0;    
     vec phi_n_p_0(3*N+1, arma::fill::zeros);
     //fill_initial(phi_n_p_0, "uniform");
     //fill_initial(phi_n_p_0, "random");
@@ -444,8 +449,8 @@ int main() {
             //bool b = index_exist(i, j);
             //printf("index exist: %d %d, %d \n", i, j, b);
             int k = ijTok(i, j);        
-            phi_n_p_0(k) = thermal * log(dop_left/n_int);
-            phi_n_p_0(N + k) = dop_left;
+            phi_n_p_0(k) = - thermal * log(abs(dop_left)/n_int);
+            phi_n_p_0(2*N + k) = abs(dop_left);
             //phi_n_p_0(k)
         }
     }
