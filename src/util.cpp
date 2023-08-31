@@ -21,6 +21,7 @@ double eps_si_rel = 11.7;
 double h = 6.62617e-34;
 double h_angular = h / (2.0 * 3.14);
 double m_0 = 9.109534e-31;
+double n_int = 1.0749878410*1e16;
 
 // A function that matches node index i to permitivity (eps).
 // i starts from 1.

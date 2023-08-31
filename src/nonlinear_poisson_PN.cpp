@@ -10,9 +10,8 @@
 // #include <fmt/format.h>
 using namespace arma; 
 
-const int N = 301;
+const int N = 101;
 //double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
-double n_int = 1.0*1e16;
 double T = 300;    
 double thermal = k_B * T / q;
 
@@ -25,6 +24,8 @@ double coeff = deltaX*deltaX*q / eps_0;
 // double dop_center = 2e23; // in m^3
 double dop_left = 5e23; // in m^3
 double dop_right = -2e23;
+
+const string subject_name = "PN_1D_NP";
 
 int interface_i = round(left_part_width/deltaX) + 1;
 
@@ -193,7 +194,7 @@ int main() {
         n /= 1e6;        
         vec eDensity = n(span(1, N));        
 
-        std::string n_file_name = fmt::format("NP_PN_eDensity_{:.2f}.csv", (0.1*i));
+        std::string n_file_name = fmt::format("{}_eDensity_{:.2f}.csv", subject_name, (0.1*i));
         eDensity.save(n_file_name, csv_ascii);        
 
         vec h(N+1, arma::fill::zeros);
@@ -201,11 +202,11 @@ int main() {
         h /= 1e6;        
         vec holeDensity = h(span(1, N));        
 
-        std::string h_file_name = fmt::format("NP_PN_holeDensity_{:.2f}.csv", (0.1*i));
+        std::string h_file_name = fmt::format("{}_holeDensity_{:.2f}.csv", subject_name, (0.1*i));
         holeDensity.save(h_file_name, csv_ascii);        
         
         vec phi_for_plot = phi(span(1, N));
-        std::string phi_file_name = fmt::format("NP_PN_phi_{:.2f}.csv", (0.1*i));
+        std::string phi_file_name = fmt::format("{}_phi_{:.2f}.csv", subject_name, (0.1*i));
         phi_for_plot.save(phi_file_name, csv_ascii);
         
         args.y_label = "eDensity (cm^3)";

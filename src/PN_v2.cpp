@@ -12,18 +12,18 @@
 // #include <fmt/format.h>
 using namespace arma; 
 
-const int N = 301;
+const int N = 101;
 //int n_int = 1e10;
 //double n_int = 1e16;
 //double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
-double n_int = 1.0*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
+//double n_int = 1.0*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
 double T = 300;    
 // double total_width = 6.0;    
 // double t_ox = 0.5;
 bool use_normalizer = false;
 double thermal = k_B * T / q;
 
-double left_part_width = 3e-7;
+double left_part_width = 2e-7;
 double total_width = left_part_width*2;
 double deltaX = (total_width) / (N-1); // in meter  
 double coeff = deltaX*deltaX*q;
@@ -32,6 +32,8 @@ double dop_left = 5e23; // in m^3, n-type
 double dop_right = -2e23; // p-type
 int interface_i = round(left_part_width/deltaX) + 1;
 vec one_vector(3*N+1, fill::ones);
+
+const string subject_name = "PN_1D_NP";
 
 double B(double x)
 {
@@ -287,13 +289,13 @@ void solve_for_phi_n(vec &phi_n_p_k, double bias)
     vec holeDensities = phi_n_p_k(span(2*N+1, 3*N));    
 
     eDensities = eDensities / 1e6;
-    std::string eDensities_file_name = fmt::format("PN_eDensity_{:.2f}.csv", bias);
+    std::string eDensities_file_name = fmt::format("{}_eDensity_{:.2f}.csv", subject_name, bias);
     eDensities.save(eDensities_file_name, csv_ascii);        
     holeDensities = holeDensities / 1e6;
-    std::string holeDensities_file_name = fmt::format("PN_holeDensity_{:.2f}.csv", bias);
+    std::string holeDensities_file_name = fmt::format("{}_holeDensity_{:.2f}.csv", subject_name, bias);
     holeDensities.save(holeDensities_file_name, csv_ascii);
 
-    std::string phi_file_name = fmt::format("PN_phi_{:.2f}.csv", bias);
+    std::string phi_file_name = fmt::format("{}_phi_{:.2f}.csv", subject_name, bias);
     potential.save(phi_file_name, csv_ascii);
 
     // double phi_bi = thermal * log(dop_left*dop_right/pow(n_int, 2));
@@ -383,17 +385,17 @@ void compute_I_V_curve()
     bool load_initial_solution_from_NP = true;    
     if (load_initial_solution_from_NP)
     {
-        std::string file_name = fmt::format("NP_PN_phi_{:.2f}.csv", 0.0); 
+        std::string file_name = fmt::format("{}_phi_{:.2f}.csv", subject_name, 0.0); 
         cout << file_name << "\n";        
         vec phi_from_NP(N, fill::zeros);
         phi_from_NP.load(file_name);
 
-        file_name = fmt::format("NP_PN_eDensity_{:.2f}.csv", 0.0); 
+        file_name = fmt::format("{}_eDensity_{:.2f}.csv", subject_name, 0.0); 
         cout << file_name << "\n";        
         vec eDensity_from_NP(N, fill::zeros);
         eDensity_from_NP.load(file_name);        
 
-        file_name = fmt::format("NP_PN_holeDensity_{:.2f}.csv", 0.0); 
+        file_name = fmt::format("{}_holeDensity_{:.2f}.csv", subject_name, 0.0); 
         cout << file_name << "\n";        
         vec holeDensity_from_NP(N, fill::zeros);
         holeDensity_from_NP.load(file_name);           
@@ -407,8 +409,8 @@ void compute_I_V_curve()
     vec current_densities(num_biases+1, arma::fill::zeros);    
     for (int i=0; i<=(num_biases); ++i)
     {
-        //double bias = - i * 0.05;
         double bias = i * 0.05;
+        //double bias = i * 0.05;
         printf("Applying Bias: %f V \n", bias);
         solve_for_phi_n(phi_n_p_k, bias);
         double J = get_current_densities(phi_n_p_k);    
