@@ -18,8 +18,9 @@ double n_int = 1.0*1e16;
 double T = 300;    
 double thermal = k_B * T / q;
 
-double left_part_width = 2e-7;
-double total_width = left_part_width*2;
+double left_part_width = 1e-8;
+double center_part_width = 4e-8;
+double total_width = left_part_width*2 + center_part_width;
 double deltaX = total_width / (Nx-1); // in meter  
 double total_height = 0.8e-7;
 double deltaY = (total_height) / (Ny-1); // in meter  
@@ -36,17 +37,16 @@ double deltaY = (total_height) / (Ny-1); // in meter
 #define phi_at(i, j, var_name) (index_exist(i, j) ? var_name(ijTok(i, j)) : 0)
 #define n_at(i, j, var_name) (index_exist(i, j) ? var_name(N + ijTok(i, j)) : 0)
 #define p_at(i, j, var_name) (index_exist(i, j) ? var_name(2*N + ijTok(i, j)) : 0)
-#define INCLUDE_VFLUX = true
+#define INCLUDE_VFLUX true
 
-const string subject_name = "PN_2D_SG";
+const string subject_name = "nnn_2D_SG";
 
-double dop_left = 5e24; // in m^3
-// double dop_center = 2e23; // in m^3
-//double dop_left = 5e23; // in m^3
-double dop_right = -2e24;
-//double dop_right = -2e23;
-
-int interface_i = round(left_part_width/deltaX) + 1;
+double dop_left = 5e25; // in m^3
+double dop_center = 2e23; // in m^3
+double dop_avg = (dop_left + dop_center) / 2.0;
+double dop_right = dop_left;
+int interface1_i = round(left_part_width/deltaX) + 1;
+int interface2_i = round((left_part_width + center_part_width)/deltaX) + 1;
 vec one_vector(3*N, fill::ones);
 
 double B(double x);
@@ -86,11 +86,11 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double bias)
         i = Nx;            
         k = ijTok(i, j);
         r(k) = phi_at(i, j, phi_n_p) - compute_eq_phi(dop_right) - bias;
-        r(N + k) = n_at(i, j, phi_n_p) - abs(n_int*n_int/dop_right);
-        r(2*N + k) = p_at(i, j, phi_n_p) - abs(dop_right);        
+        r(N + k) = n_at(i, j, phi_n_p) - abs(dop_right);
+        r(2*N + k) = p_at(i, j, phi_n_p) - abs(n_int*n_int/dop_right);
         jac(k, k) = 1.0; 
         jac(N + k, N + k) = 1.0; 
-        jac(2*N + k, 2*N + k) = 1.0;                             
+        jac(2*N + k, 2*N + k) = 1.0;                              
     }        
     
     double ion_term = 0.0;
@@ -104,38 +104,49 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double bias)
             double n_ij = n_at(i, j, phi_n_p);
             double p_ij = p_at(i, j, phi_n_p);                 
 
-            if (i < interface_i)                                                    
-                ion_term = dop_left;                                                       
-            else if (i == interface_i)            
-                ion_term = 0.5*(dop_left) + 0.5*(dop_right);                                              
-            else if (i > interface_i)            
-                ion_term = dop_right;                                                             
+            if (i < interface1_i)
+                ion_term = dop_left;
+            else if (i == interface1_i)
+                ion_term = 0.5*(dop_left) + 0.5*(dop_center);                
+            else if (i > interface1_i & i < interface2_i)
+                ion_term = dop_center;                
+            else if (i == interface2_i)
+                ion_term = 0.5*(dop_center) + 0.5*(dop_right);                                
+            else if (i > interface2_i)
+                ion_term = dop_right;                                                           
 
             double phi_ipj = phi_at(i+1, j, phi_n_p);                           
             double phi_imj = phi_at(i-1, j, phi_n_p);                           
-            // double phi_ijp = phi_at(i, j+1, phi_n_p);                           
-            // double phi_ijm = phi_at(i, j-1, phi_n_p);                           
+            double phi_ijp = phi_at(i, j+1, phi_n_p);                           
+            double phi_ijm = phi_at(i, j-1, phi_n_p);                           
 
             double n_ipj = n_at(i+1, j, phi_n_p);                           
             double n_imj = n_at(i-1, j, phi_n_p);                           
-            // double n_ijp = n_at(i, j+1, phi_n_p);                           
-            // double n_ijm = n_at(i, j-1, phi_n_p);                                       
+            double n_ijp = n_at(i, j+1, phi_n_p);                           
+            double n_ijm = n_at(i, j-1, phi_n_p);                                       
 
             double p_ipj = p_at(i+1, j, phi_n_p);                           
             double p_imj = p_at(i-1, j, phi_n_p);                           
-            // double p_ijp = p_at(i, j+1, phi_n_p);                           
-            // double p_ijm = p_at(i, j-1, phi_n_p);                                       
+            double p_ijp = p_at(i, j+1, phi_n_p);                           
+            double p_ijm = p_at(i, j-1, phi_n_p);                                       
 
             double phi_diff_ipi = phi_ipj - phi_ij;
             double phi_diff_iim = phi_ij - phi_imj;
-            // double phi_diff_jpj = phi_ijp - phi_ij;
-            // double phi_diff_jjm = phi_ij - phi_ijm;
+            double phi_diff_jpj = phi_ijp - phi_ij;
+            double phi_diff_jjm = phi_ij - phi_ijm;
 
-            deltaY = 1;
+            // if (!INCLUDE_VFLUX)
+            //     deltaY = 1;
             double s_ipj = deltaY;
             double s_imj = - deltaY;
             double s_ijp = deltaX;
             double s_ijm = - deltaX;
+            if (!INCLUDE_VFLUX)
+            {
+                s_ijp = 0;
+                s_ijm = 0;
+            }
+            
             double V = deltaX*deltaY;
 
             if (j == 1)      
@@ -154,121 +165,143 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double bias)
             }
             
             double D_ipj = -eps_ipj(i,j) * phi_diff_ipi / deltaX;
-            double D_imj = -eps_imj(i,j) * phi_diff_iim / deltaX;
-            
-            // double D_ijp = -eps_ijp(i,j) * phi_diff_jpj / deltaY;
-            // double D_ijm = -eps_ijm(i,j) * phi_diff_jjm / deltaY;        
+            double D_imj = -eps_imj(i,j) * phi_diff_iim / deltaX;                                        
 
             // Residual for the Poisson Equation
-            //r(k) = s_ipj*D_ipj + s_imj*D_imj + s_ijp*D_ijp + s_ijm*D_ijm;            
-            r(k) = s_ipj*D_ipj + s_imj*D_imj;
+            if (INCLUDE_VFLUX)
+            {
+                double D_ijp = -eps_ijp(i,j) * phi_diff_jpj / deltaY;
+                double D_ijm = -eps_ijm(i,j) * phi_diff_jjm / deltaY;        
+                r(k) = s_ipj*D_ipj + s_imj*D_imj + s_ijp*D_ijp + s_ijm*D_ijm;            
+            }
+            else
+                r(k) = s_ipj*D_ipj + s_imj*D_imj;
+
             r(k) -= V*q*(ion_term - n_ij + p_ij);             
             r(k) /= eps_0;
             
             //r(k) *= deltaX;
             // Jacobian for the Poisson Equation
-            // jac(k, k) = s_ipj*eps_ipj(i, j)/deltaX - s_imj*eps_imj(i, j)/deltaX +
-            //     s_ijp*eps_ijp(i, j)/deltaY - s_ijm*eps_ijm(i, j)/deltaY;            
-            jac(k, k) = s_ipj*eps_ipj(i, j)/deltaX - s_imj*eps_imj(i, j)/deltaX;                
+            if (INCLUDE_VFLUX)
+            {
+                jac(k, k) = s_ipj*eps_ipj(i, j)/deltaX - s_imj*eps_imj(i, j)/deltaX +
+                    s_ijp*eps_ijp(i, j)/deltaY - s_ijm*eps_ijm(i, j)/deltaY;            
+            }
+            else
+                jac(k, k) = s_ipj*eps_ipj(i, j)/deltaX - s_imj*eps_imj(i, j)/deltaX;                
             jac(k, k) /= eps_0;
             
             jac(k, ijTok(i+1, j)) = - s_ipj*eps_ipj(i, j) / deltaX;                        
             jac(k, ijTok(i-1, j)) = s_imj*eps_imj(i, j) / deltaX;   
             jac(k, ijTok(i+1, j)) /= eps_0;
             jac(k, ijTok(i-1, j)) /= eps_0;
-
-            // jac(k, k) *= deltaX;
-            // jac(k, ijTok(i+1, j)) *= deltaX;
-            // jac(k, ijTok(i-1, j)) *= deltaX;
-            // if (index_exist(i, j+1))
-            //     jac(k, ijTok(i, j+1)) = - s_ijp*eps_ijp(i, j) / deltaY;
-            // if (index_exist(i, j-1))                        
-            //     jac(k, ijTok(i, j-1)) = s_ijm*eps_ijm(i, j) / deltaY;                                                                      
+            
+            if (INCLUDE_VFLUX)
+            {
+                if (index_exist(i, j+1))
+                {
+                    jac(k, ijTok(i, j+1)) = - s_ijp*eps_ijp(i, j) / deltaY;
+                    jac(k, ijTok(i, j+1)) /= eps_0;
+                }
+                if (index_exist(i, j-1))                        
+                {
+                    jac(k, ijTok(i, j-1)) = s_ijm*eps_ijm(i, j) / deltaY;                                                                      
+                    jac(k, ijTok(i, j-1)) /= eps_0;
+                }
+            }
             jac(k, N + ijTok(i, j)) =  q*V; // r w.r.t. n                        
             jac(k, 2*N + ijTok(i, j)) = - q*V; // r w.r.t. p    
-
             jac(k, N + ijTok(i, j)) /=  eps_0;
             jac(k, 2*N + ijTok(i, j)) /=  eps_0;
 
-            // jac(k, N + ijTok(i, j)) *= deltaX;
-            // jac(k, 2*N + ijTok(i, j)) *= deltaX;
 
             // Residual for the SG (n)     
             double Jn_ipj = n_ipj*B(phi_diff_ipi/thermal) - n_ij*B(-phi_diff_ipi/thermal);
-            double Jn_imj = n_ij*B(phi_diff_iim/thermal) - n_imj*B(-phi_diff_iim/thermal);
-            // double Jn_ijp = n_ijp*B(phi_diff_jpj/thermal) - n_ij*B(-phi_diff_jpj/thermal);
-            // double Jn_ijm = n_ij*B(phi_diff_jjm/thermal) - n_ijm*B(-phi_diff_jjm/thermal);
-            //r(N + k) = s_ipj*Jn_ipj - s_imj*Jn_imj + s_ijp*Jn_ijp - s_ijm*Jn_ijm;
-            r(N + k) = s_ipj*Jn_ipj + s_imj*Jn_imj;
-            //r(N + k) /= dop_left;
+            double Jn_imj = n_ij*B(phi_diff_iim/thermal) - n_imj*B(-phi_diff_iim/thermal);                        
+            if (INCLUDE_VFLUX)
+            {
+                double Jn_ijp = n_ijp*B(phi_diff_jpj/thermal) - n_ij*B(-phi_diff_jpj/thermal);
+                double Jn_ijm = n_ij*B(phi_diff_jjm/thermal) - n_ijm*B(-phi_diff_jjm/thermal);
+                r(N + k) = s_ipj*Jn_ipj + s_imj*Jn_imj + s_ijp*Jn_ijp + s_ijm*Jn_ijm;
+            }            
+            else
+                r(N + k) = s_ipj*Jn_ipj + s_imj*Jn_imj;
 
             // Jacobian for the SG (n)
             // w.r.t. phis
             double a, b, c, d;
             jac(N + k, ijTok(i+1, j)) = a = s_ipj*(n_ij*dB(-phi_diff_ipi/thermal) + n_ipj*dB(phi_diff_ipi/thermal)) / thermal;
             jac(N + k, ijTok(i-1, j)) = b = s_imj*(-n_imj*dB(-phi_diff_iim/thermal) - n_ij*dB(phi_diff_iim/thermal)) / thermal;
-            // if (index_exist(i, j+1))                        
-            //     jac(N + k, ijTok(i, j+1)) = c = s_ijp*(n_ij*dB(-phi_diff_jpj/thermal) + n_ijp*dB(phi_diff_jpj/thermal)) / thermal;
-            // if (index_exist(i, j-1))                        
-            //     jac(N + k, ijTok(i, j-1)) = d = s_ijm*(-n_ijm*dB(-phi_diff_jjm/thermal) - n_ij*dB(phi_diff_jjm/thermal)) / thermal;
-            //jac(N + k, ijTok(i, j)) = -a-b-c-d;
-            jac(N + k, ijTok(i, j)) = -a-b;
+            if (INCLUDE_VFLUX)
+            {
+                if (index_exist(i, j+1))                        
+                    jac(N + k, ijTok(i, j+1)) = c = s_ijp*(n_ij*dB(-phi_diff_jpj/thermal) + n_ijp*dB(phi_diff_jpj/thermal)) / thermal;
+                if (index_exist(i, j-1))                        
+                    jac(N + k, ijTok(i, j-1)) = d = s_ijm*(-n_ijm*dB(-phi_diff_jjm/thermal) - n_ij*dB(phi_diff_jjm/thermal)) / thermal;
+                jac(N + k, ijTok(i, j)) = -a-b-c-d;
+            }
+            else
+                jac(N + k, ijTok(i, j)) = -a-b;
             // w.r.t. ns
             jac(N + k, N + ijTok(i+1, j)) = s_ipj*B(phi_diff_ipi/thermal);
             jac(N + k, N + ijTok(i-1, j)) = -s_imj*B(-phi_diff_iim/thermal);
-            // if (index_exist(i, j+1))                        
-            //     jac(N + k, N + ijTok(i, j+1)) = s_ijp*B(phi_diff_jpj/thermal);
-            // if (index_exist(i, j-1))                        
-            //     jac(N + k, N + ijTok(i, j-1)) = -s_ijm*B(-phi_diff_jjm/thermal);
-            //jac(N + k, N + ijTok(i, j)) = - s_ipj*B(-phi_diff_ipi/thermal) + s_imj*B(phi_diff_iim/thermal) - s_ijp*B(-phi_diff_jpj/thermal) + s_ijm*B(phi_diff_jjm/thermal);
-            jac(N + k, N + ijTok(i, j)) = - s_ipj*B(-phi_diff_ipi/thermal) + s_imj*B(phi_diff_iim/thermal);
-            
-            // jac(N + k, ijTok(i+1, j)) /= dop_left;
-            // jac(N + k, ijTok(i-1, j)) /= dop_left;
-            // jac(N + k, ijTok(i, j)) /= dop_left;
-            // jac(N + k, N + ijTok(i+1, j)) /= dop_left;
-            // jac(N + k, N + ijTok(i-1, j)) /= dop_left;
-            // jac(N + k, N + ijTok(i, j)) /= dop_left;
+            if (INCLUDE_VFLUX)
+            {
+                if (index_exist(i, j+1))                        
+                    jac(N + k, N + ijTok(i, j+1)) = s_ijp*B(phi_diff_jpj/thermal);
+                if (index_exist(i, j-1))                        
+                    jac(N + k, N + ijTok(i, j-1)) = -s_ijm*B(-phi_diff_jjm/thermal);
+                jac(N + k, N + ijTok(i, j)) = - s_ipj*B(-phi_diff_ipi/thermal) + s_imj*B(phi_diff_iim/thermal) - s_ijp*B(-phi_diff_jpj/thermal) + s_ijm*B(phi_diff_jjm/thermal);
+            }
+            else
+                jac(N + k, N + ijTok(i, j)) = - s_ipj*B(-phi_diff_ipi/thermal) + s_imj*B(phi_diff_iim/thermal);        
 
             // Residual for the SG (p)    
             double Jp_ipj = -p_ipj*B(-phi_diff_ipi/thermal) + p_ij*B(phi_diff_ipi/thermal);
-            double Jp_imj = -p_ij*B(-phi_diff_iim/thermal) + p_imj*B(phi_diff_iim/thermal);            
-            r(2*N + k) = s_ipj*Jp_ipj + s_imj*Jp_imj;
-            //r(2*N + k) /= dop_left;
+            double Jp_imj = -p_ij*B(-phi_diff_iim/thermal) + p_imj*B(phi_diff_iim/thermal);                        
+            if (INCLUDE_VFLUX)
+            {
+                double Jp_ijp = -p_ijp*B(-phi_diff_jpj/thermal) + p_ij*B(phi_diff_jpj/thermal);
+                double Jp_ijm = -p_ij*B(-phi_diff_jjm/thermal) + p_ijm*B(phi_diff_jjm/thermal);                
+                r(2*N + k) = s_ipj*Jp_ipj + s_imj*Jp_imj + s_ijp*Jp_ijp + s_ijm*Jp_ijm;                    
+            }
+            else
+                r(2*N + k) = s_ipj*Jp_ipj + s_imj*Jp_imj;
 
             // Jacobian for the SG (p)
             // w.r.t. phis
             jac(2*N + k, ijTok(i+1, j)) = a = s_ipj*(p_ij*dB(phi_diff_ipi/thermal) + p_ipj*dB(-phi_diff_ipi/thermal)) / thermal;                      
             jac(2*N + k, ijTok(i-1, j)) = b = s_imj*(- p_imj*dB(phi_diff_iim/thermal) - p_ij*dB(-phi_diff_iim/thermal)) / thermal;
-            // if (index_exist(i, j+1))                        
-            //     jac(2*N + k, ijTok(i, j+1)) = c = s_ijp*(p_ij*dB(phi_diff_jpj/thermal) + p_ijp*dB(-phi_diff_jpj/thermal)) / thermal;
-            // if (index_exist(i, j-1))                        
-            //     jac(2*N + k, ijTok(i, j-1)) = d = s_ijm*(- p_ijm*dB(phi_diff_jjm/thermal) - p_ij*dB(-phi_diff_jjm/thermal)) / thermal;
-            //jac(2*N + k, ijTok(i, j)) = -a-b-c-d;
-            jac(2*N + k, ijTok(i, j)) = -a-b;
+            if (INCLUDE_VFLUX)
+            {
+                if (index_exist(i, j+1))                        
+                    jac(2*N + k, ijTok(i, j+1)) = c = s_ijp*(p_ij*dB(phi_diff_jpj/thermal) + p_ijp*dB(-phi_diff_jpj/thermal)) / thermal;
+                if (index_exist(i, j-1))                        
+                    jac(2*N + k, ijTok(i, j-1)) = d = s_ijm*(- p_ijm*dB(phi_diff_jjm/thermal) - p_ij*dB(-phi_diff_jjm/thermal)) / thermal;
+                jac(2*N + k, ijTok(i, j)) = -a-b-c-d;
+            }
+            else
+                jac(2*N + k, ijTok(i, j)) = -a-b;
             // w.r.t. ps
             jac(2*N + k, 2*N + ijTok(i+1, j)) = -s_ipj*B(-phi_diff_ipi/thermal);            
-            jac(2*N + k, 2*N + ijTok(i-1, j)) = s_imj*B(phi_diff_iim/thermal);            
-            // if (index_exist(i, j+1))                        
-            //     jac(2*N + k, 2*N + ijTok(i, j+1)) = -s_ijp*B(-phi_diff_jpj/thermal);
-            // if (index_exist(i, j-1))                        
-            //     jac(2*N + k, 2*N + ijTok(i, j-1)) = s_ijm*B(phi_diff_jjm/thermal);
-            //jac(2*N + k, 2*N + ijTok(i, j)) = s_ipj*B(phi_diff_ipi/thermal) - s_imj*B(-phi_diff_iim/thermal) + s_ijp*B(phi_diff_jpj/thermal) - s_ijm*B(-phi_diff_jjm/thermal);
-            jac(2*N + k, 2*N + ijTok(i, j)) = s_ipj*B(phi_diff_ipi/thermal) - s_imj*B(-phi_diff_iim/thermal);
-
-            // jac(2*N + k, ijTok(i+1, j)) /= dop_left;
-            // jac(2*N + k, ijTok(i-1, j)) /= dop_left;
-            // jac(2*N + k, ijTok(i, j)) /= dop_left;
-            // jac(2*N + k, 2*N + ijTok(i+1, j)) /= dop_left;
-            // jac(2*N + k, 2*N + ijTok(i-1, j)) /= dop_left;
-            // jac(2*N + k, 2*N + ijTok(i, j)) /= dop_left;
+            jac(2*N + k, 2*N + ijTok(i-1, j)) = s_imj*B(phi_diff_iim/thermal);   
+            if (INCLUDE_VFLUX)
+            {         
+                if (index_exist(i, j+1))                        
+                    jac(2*N + k, 2*N + ijTok(i, j+1)) = -s_ijp*B(-phi_diff_jpj/thermal);
+                if (index_exist(i, j-1))                        
+                    jac(2*N + k, 2*N + ijTok(i, j-1)) = s_ijm*B(phi_diff_jjm/thermal);
+                jac(2*N + k, 2*N + ijTok(i, j)) = s_ipj*B(phi_diff_ipi/thermal) - s_imj*B(-phi_diff_iim/thermal) + s_ijp*B(phi_diff_jpj/thermal) - s_ijm*B(-phi_diff_jjm/thermal);
+            }
+            else
+                jac(2*N + k, 2*N + ijTok(i, j)) = s_ipj*B(phi_diff_ipi/thermal) - s_imj*B(-phi_diff_iim/thermal);
         }      
     }
 }
 
 vec solve_phi(double boundary_potential, vec &phi_n_p_0, sp_mat &C)
 {                
-    int num_iters = 15;    
+    int num_iters = 30;    
     printf("boundary voltage: %f \n", boundary_potential);
     auto start = high_resolution_clock::now();
     vec log_residuals(num_iters, arma::fill::zeros);
@@ -357,51 +390,67 @@ void save_current_densities(vec &phi_n)
 }
 
 
-void fill_initial(vec &phi, string method)
-{        
-    double phi_1 = compute_eq_phi(dop_left);
-    double phi_Nx = compute_eq_phi(dop_right);
-    for (int j=1; j<=Ny; j++)
-    {
-        for (int i=1; i<=Nx; i++)
-        { 
-            int k = ijTok(i, j);            
-            if (i==1)  
-                phi(k) = phi_1;
-            else if (i==Nx)                            
-                phi(k) = phi_Nx;
-            else
-            {
-                if (method.compare("uniform") == 0)
-                {
-                    if (i <= interface_i)                
-                        phi(k) = phi_1;
-                    else
-                        phi(k) = phi_Nx;                            
-                }
-                else if (method.compare("linear") == 0)
-                {
-                    phi(k) = phi_1 + (phi_Nx - phi_1) * ((i-1)/(Nx-1));
-                }
-                else if (method.compare("random") == 0)
-                {
-                    double r = static_cast <double> (rand()) / static_cast <double> (RAND_MAX);
-                    phi(k) = r;
-                }
-            }
-        }
-     }      
-}
+// void fill_initial(vec &phi, string method)
+// {        
+//     double phi_1 = compute_eq_phi(dop_left);
+//     double phi_Nx = compute_eq_phi(dop_right);
+//     for (int j=1; j<=Ny; j++)
+//     {
+//         for (int i=1; i<=Nx; i++)
+//         { 
+//             int k = ijTok(i, j);            
+//             if (i==1)  
+//                 phi(k) = phi_1;
+//             else if (i==Nx)                            
+//                 phi(k) = phi_Nx;
+//             else
+//             {
+//                 if (method.compare("uniform") == 0)
+//                 {
+//                     if (i <= interface_i)                
+//                         phi(k) = phi_1;
+//                     else
+//                         phi(k) = phi_Nx;                            
+//                 }
+//                 else if (method.compare("linear") == 0)
+//                 {
+//                     phi(k) = phi_1 + (phi_Nx - phi_1) * ((i-1)/(Nx-1));
+//                 }
+//                 else if (method.compare("random") == 0)
+//                 {
+//                     double r = static_cast <double> (rand()) / static_cast <double> (RAND_MAX);
+//                     phi(k) = r;
+//                 }
+//             }
+//         }
+//      }      
+// }
 
 
 int main() {    
 
+    string setting = fmt::format("deltaX: {}, deltaY: {}", deltaX, deltaY); 
+    cout << setting << "\n";        
     double bias = -0.4;    
     vec phi_n_p_0(3*N+1, arma::fill::zeros);
     //fill_initial(phi_n_p_0, "uniform");
     //fill_initial(phi_n_p_0, "random");
     //fill_initial(phi_n_p_0, "linear");
-    bool load_initial_solution_from_NP = true;    
+
+    for (int j=1; j<=Ny; ++j)
+    {        
+        for (int i=1; i<=Nx; ++i)
+        {
+            //bool b = index_exist(i, j);
+            //printf("index exist: %d %d, %d \n", i, j, b);
+            int k = ijTok(i, j);        
+            phi_n_p_0(k) = thermal * log(dop_left/n_int);
+            phi_n_p_0(N + k) = dop_left;
+            //phi_n_p_0(k)
+        }
+    }
+
+    bool load_initial_solution_from_NP = false;    
     if (load_initial_solution_from_NP)
     {
         string subject_name = "PN_2D_NP";

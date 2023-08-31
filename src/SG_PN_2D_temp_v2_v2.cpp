@@ -137,8 +137,12 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double bias)
             double s_imj = - deltaY;
             double s_ijp = deltaX;
             double s_ijm = - deltaX;
-            // double s_ijp = 0;
-            // double s_ijm = 0;
+            if (!INCLUDE_VFLUX)
+            {
+                s_ijp = 0;
+                s_ijm = 0;
+            }
+            
             double V = deltaX*deltaY;
 
             if (j == 1)      
@@ -421,6 +425,8 @@ void fill_initial(vec &phi, string method)
 
 int main() {    
 
+    string setting = fmt::format("deltaX: {}, deltaY: {}", deltaX, deltaY); 
+    cout << setting << "\n";        
     double bias = -0.4;    
     vec phi_n_p_0(3*N+1, arma::fill::zeros);
     //fill_initial(phi_n_p_0, "uniform");

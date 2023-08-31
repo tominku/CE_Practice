@@ -32,7 +32,7 @@ double deltaY = (total_height) / (Ny-1); // in meter
 #define eps_ijp(i, j) eps_si
 #define eps_ijm(i, j) eps_si
 //#define phi_at(i, j, phi_name, phi_center_name) ((i) > 1 && (i) < Ny ? phi_name(ijTok(i, j)) : phi_center_name)
-#define phi_at(i, j, phi_name, phi_center_name) ((j >= 1 && j <= Ny) ? phi_name(ijTok(i, j)) : phi_center_name)
+#define phi_at(i, j, phi_name, phi_center_name) ((j >= 1 && j <= Ny) ? phi_name(ijTok(i, j)) : 0)
 #define index_exist(i, j) ((j >= 1 && j <= Ny && i >= 1 && i <= Nx) ? true : false)
 
 const string subject_name = "PN_2D_NP";
