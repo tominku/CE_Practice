@@ -10,11 +10,11 @@
 // #include <fmt/format.h>
 using namespace arma; 
 
-const int Nx = 101;
+const int Nx = 601;
 const int Ny = 21;
 const int N = Nx * Ny;
 //double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
-double n_int = 1.0*1e16;
+//double n_int = 1.0*1e16;
 double T = 300;    
 double thermal = k_B * T / q;
 
@@ -432,7 +432,8 @@ int main() {
     string setting = fmt::format("deltaX: {}, deltaY: {}", deltaX, deltaY); 
     cout << setting << "\n";        
     //double bias = -0.4;    
-    double bias = 1.0;    
+    //double bias = 1.0;    
+    double bias = 0.0;    
     vec phi_n_p_0(3*N+1, arma::fill::zeros);
     //fill_initial(phi_n_p_0, "uniform");
     //fill_initial(phi_n_p_0, "random");

@@ -11,7 +11,7 @@
 using namespace arma; 
 
 const int N = 601;
-double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
+//double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
 //double n_int = 1.0*1e16;
 double T = 300;    
 double thermal = k_B * T / q;

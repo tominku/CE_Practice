@@ -32,8 +32,9 @@ double dop_left = 5e23; // in m^3, n-type
 double dop_right = -2e23; // p-type
 int interface_i = round(left_part_width/deltaX) + 1;
 vec one_vector(3*N+1, fill::ones);
+#define DO_BIAS_FORWARD false
 
-const string subject_name = "PN_1D_NP";
+const string subject_name = "PN_1D_SG";
 
 double B(double x)
 {
@@ -354,7 +355,7 @@ double get_current_densities(vec &phi_n_p)
         //J_SG *= 1e6;
         
         //current_densities(i) = J_SG;
-        printf("Result Current Density J: %f (J_n_SG: %f, J_h_SG: %f) \n", J_SG, J_n_SG, J_h_SG);
+        //printf("Result Current Density J: %f (J_n_SG: %f, J_h_SG: %f) \n", J_SG, J_n_SG, J_h_SG);
         //printf("Result Current Density J: %f, term1: %f, term2: %f, J_SG: %f \n", J, J_term1, J_term2, J_SG);
     }
     //current_densities.save("current_densities.txt", arma::raw_ascii);
@@ -385,17 +386,18 @@ void compute_I_V_curve()
     bool load_initial_solution_from_NP = true;    
     if (load_initial_solution_from_NP)
     {
-        std::string file_name = fmt::format("{}_phi_{:.2f}.csv", subject_name, 0.0); 
+        string initial_solution_fname = "PN_1D_NP";
+        std::string file_name = fmt::format("{}_phi_{:.2f}.csv", initial_solution_fname, 0.0); 
         cout << file_name << "\n";        
         vec phi_from_NP(N, fill::zeros);
         phi_from_NP.load(file_name);
 
-        file_name = fmt::format("{}_eDensity_{:.2f}.csv", subject_name, 0.0); 
+        file_name = fmt::format("{}_eDensity_{:.2f}.csv", initial_solution_fname, 0.0); 
         cout << file_name << "\n";        
         vec eDensity_from_NP(N, fill::zeros);
         eDensity_from_NP.load(file_name);        
 
-        file_name = fmt::format("{}_holeDensity_{:.2f}.csv", subject_name, 0.0); 
+        file_name = fmt::format("{}_holeDensity_{:.2f}.csv", initial_solution_fname, 0.0); 
         cout << file_name << "\n";        
         vec holeDensity_from_NP(N, fill::zeros);
         holeDensity_from_NP.load(file_name);           
@@ -405,19 +407,25 @@ void compute_I_V_curve()
         phi_n_p_k(span(2*N+1, 3*N)) = holeDensity_from_NP(span(0, N-1));        
     }
 
-    int num_biases = 20;
+    int num_biases = 15;
     vec current_densities(num_biases+1, arma::fill::zeros);    
     for (int i=0; i<=(num_biases); ++i)
     {
-        double bias = i * 0.05;
-        //double bias = i * 0.05;
+        double bias = 0.0;
+        if (DO_BIAS_FORWARD)
+            bias = i * 0.05;
+        else
+            bias = -i * 0.05;
+        
         printf("Applying Bias: %f V \n", bias);
         solve_for_phi_n(phi_n_p_k, bias);
         double J = get_current_densities(phi_n_p_k);    
         printf("save J: %f \n", J);
         current_densities(i) = J;
     }
-    current_densities.save("current_densities.csv", arma::raw_ascii);
+
+    std::string J_fname = fmt::format("{}_FWD_{}_Js.csv", subject_name, DO_BIAS_FORWARD); 
+    current_densities.save(J_fname, arma::raw_ascii);
 }
 
 void save_B(std::string file_name)

@@ -11,7 +11,7 @@
 using namespace arma; 
 
 const int N = 501;
-double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
+//double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
 //double n_int = 1.0*1e16;
 double T = 300;    
 double thermal = k_B * T / q;
@@ -208,7 +208,7 @@ int main() {
         vec phi_for_plot = phi(span(1, N));
         std::string phi_file_name = fmt::format("NP_phi_{:.2f}.csv", (0.1*i));
         phi_for_plot.save(phi_file_name, csv_ascii);
-        //plot(eDensity, args);
+        plot(eDensity, args);
         //plot(phi_for_plot, args);
 
         vec phi_n(2*N+1, arma::fill::zeros);

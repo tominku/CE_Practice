@@ -425,7 +425,7 @@ int main() {
 
     string setting = fmt::format("deltaX: {}, deltaY: {}", deltaX, deltaY); 
     cout << setting << "\n";        
-    double bias = 0.3;    
+    double bias = 0.1;    
     vec phi_n_p_0(3*N+1, arma::fill::zeros);
     //fill_initial(phi_n_p_0, "uniform");
     //fill_initial(phi_n_p_0, "random");

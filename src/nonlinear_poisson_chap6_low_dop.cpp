@@ -15,15 +15,15 @@ const int N = 601;
 double T = 300;    
 double thermal = k_B * T / q;
 
-double left_part_width = 1e-8;
-double center_part_width = 4e-8;
+double left_part_width = 1e-7;
+double center_part_width = 4e-7;
 
 double total_width = left_part_width*2 + center_part_width;
 double deltaX = total_width / (N-1); // in meter  
 double coeff = deltaX*deltaX*q / eps_0;
 
-double dop_left = 5e25; // in m^3
-double dop_center = 2e23; // in m^3
+double dop_left = 5e23; // in m^3
+double dop_center = 2e21; // in m^3
 // double dop_left = 5e23; // in m^3
 // double dop_center = 2e21; // in m^3
 double dop_right = dop_left;
@@ -31,7 +31,7 @@ double dop_right = dop_left;
 int interface1_i = round(left_part_width/deltaX) + 1;
 int interface2_i = round((left_part_width + center_part_width)/deltaX) + 1;
 
-const string subject_name = "NNN_1D_NP";
+const string subject_name = "NNN_1D_chap6_low_dop_NP";
 
 
 void r_and_jacobian(vec &r, mat &jac, vec &phi, double boundary_potential)

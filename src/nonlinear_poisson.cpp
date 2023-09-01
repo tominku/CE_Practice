@@ -13,7 +13,7 @@ using namespace arma;
 const int N = 61;
 //double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
 //double n_int = 1.07499*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
-double n_int = 1.0749878410*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
+//double n_int = 1.0749878410*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
 //double n_int = 1.0*1e16;
 double T = 300;    
 double thermal = k_B * T / q;
@@ -159,7 +159,7 @@ int main() {
     double start_potential = 0.333703995136;
 
     vec phi_0(N+1, arma::fill::zeros);
-    for (int i=0; i<=10; i++)
+    for (int i=0; i<=0; i++)
     {        
         vec phi = solve_phi(start_potential + (0.1*i), phi_0); 
         phi_0 = phi;   
@@ -185,11 +185,11 @@ int main() {
         args.y_label = "eDensity (cm^3)";
         vec eDensity = n(span(1, N));
 
-        std::string n_file_name = fmt::format("NP_eDensity_{:.2f}V.csv", (0.1*i));
+        std::string n_file_name = fmt::format("chap2_NP_eDensity_{:.2f}V.csv", (0.1*i));
         eDensity.save(n_file_name, csv_ascii);
 
         vec phi_for_save = phi(span(1, N));
-        std::string phi_file_name = fmt::format("NP_phi_{:.2f}V.csv", (0.1*i));
+        std::string phi_file_name = fmt::format("chap2_NP_phi_{:.2f}V.csv", (0.1*i));
         phi_for_save.save(phi_file_name, csv_ascii);
 
         plot(eDensity, args);

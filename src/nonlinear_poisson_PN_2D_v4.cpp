@@ -10,11 +10,10 @@
 // #include <fmt/format.h>
 using namespace arma; 
 
-const int Nx = 201;
-const int Ny = 41;
+const int Nx = 101;
+const int Ny = 21;
 const int N = Nx * Ny;
 //double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
-double n_int = 1.0*1e16;
 double T = 300;    
 double thermal = k_B * T / q;
 
@@ -39,10 +38,10 @@ const double DelXDelY = deltaX / deltaY;
 
 const string subject_name = "PN_2D_NP";
 
-double dop_left = 5e25; // in m^3
+double dop_left = 5e23; // in m^3
 // double dop_center = 2e23; // in m^3
 //double dop_left = 5e23; // in m^3
-double dop_right = -2e24;
+double dop_right = -2e23;
 //double dop_right = -2e23;
 
 int interface_i = round(left_part_width/deltaX) + 1;
@@ -146,7 +145,7 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi, double boundary_potential)
 
 vec solve_phi(double boundary_potential, vec &phi_0)
 {                
-    int num_iters = 500;    
+    int num_iters = 25;    
     printf("boundary voltage: %f \n", boundary_potential);
     auto start = high_resolution_clock::now();
     vec log_residuals(num_iters, arma::fill::zeros);
@@ -189,8 +188,8 @@ vec solve_phi(double boundary_potential, vec &phi_0)
         //double cond_jac = arma::cond(jac);
         printf("[iter %d]   log detal_x: %f   log residual: %f \n", k, log_delta, log_residual);  
         
-        if (log_delta < - 10)
-            break;
+        // if (log_delta < - 10)
+        //     break;
     }
 
     auto stop = high_resolution_clock::now();

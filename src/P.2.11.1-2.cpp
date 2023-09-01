@@ -15,7 +15,7 @@ double deltaX = 0.1e-9; // in meter
 double dop = 1e18 * 1e6; // in meter    
 //int n_int = 1e10;
 //double n_int = 1e16;
-double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
+//double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
 double T = 300;    
 // double total_width = 6.0;    
 // double t_ox = 0.5;
@@ -263,7 +263,7 @@ int main() {
         phi_0 = phi;
         
         vec n_in_cm3 = n * 1e-6;
-        std::string n_file_name = fmt::format("eDensity_{:.2f}.csv", boundary_voltage - start_potential);
+        std::string n_file_name = fmt::format("chap2_old_eDensity_{:.2f}.csv", boundary_voltage - start_potential);
         n_in_cm3.save(n_file_name, csv_ascii);
 
         if (i==100)

@@ -15,15 +15,15 @@ const int N = 601;
 double T = 300;    
 double thermal = k_B * T / q;
 
-double left_part_width = 1e-8;
-double center_part_width = 4e-8;
+double left_part_width = 1e-7;
+double center_part_width = 4e-7;
 
 double total_width = left_part_width*2 + center_part_width;
 double deltaX = total_width / (N-1); // in meter  
-double coeff = deltaX*deltaX*q / eps_0;
+double coeff = deltaX*deltaX*q;
 
-double dop_left = 5e25; // in m^3
-double dop_center = 2e23; // in m^3
+double dop_left = 5e23; // in m^3
+double dop_center = 2e21; // in m^3
 // double dop_left = 5e23; // in m^3
 // double dop_center = 2e21; // in m^3
 double dop_right = dop_left;
@@ -31,7 +31,7 @@ double dop_right = dop_left;
 int interface1_i = round(left_part_width/deltaX) + 1;
 int interface2_i = round((left_part_width + center_part_width)/deltaX) + 1;
 
-const string subject_name = "NNN_1D_NP";
+const string subject_name = "NNN_1D_chap6_low_dop_NP";
 
 
 void r_and_jacobian(vec &r, mat &jac, vec &phi, double boundary_potential)
@@ -59,32 +59,32 @@ void r_and_jacobian(vec &r, mat &jac, vec &phi, double boundary_potential)
         
         if (i < interface1_i)
         {                        
-            eps_i_m_0_5 = eps_si_rel;
-            eps_i_p_0_5 = eps_si_rel;
+            eps_i_m_0_5 = eps_si;
+            eps_i_p_0_5 = eps_si;
             dop_term = dop_left;                                           
         }
         else if (i == interface1_i)
         {            
-            eps_i_m_0_5 = eps_si_rel;
-            eps_i_p_0_5 = eps_si_rel;
+            eps_i_m_0_5 = eps_si;
+            eps_i_p_0_5 = eps_si;
             dop_term = 0.5*(dop_left) + 0.5*(dop_center);                                  
         }
         else if (i > interface1_i & i < interface2_i)
         {
-            eps_i_m_0_5 = eps_si_rel;
-            eps_i_p_0_5 = eps_si_rel;
+            eps_i_m_0_5 = eps_si;
+            eps_i_p_0_5 = eps_si;
             dop_term = dop_center;                           
         }
         else if (i == interface2_i)
         {
-            eps_i_m_0_5 = eps_si_rel;
-            eps_i_p_0_5 = eps_si_rel;
+            eps_i_m_0_5 = eps_si;
+            eps_i_p_0_5 = eps_si;
             dop_term = 0.5*(dop_center) + 0.5*(dop_right);                        
         }
         else if (i > interface2_i)
         {
-            eps_i_m_0_5 = eps_si_rel;
-            eps_i_p_0_5 = eps_si_rel;
+            eps_i_m_0_5 = eps_si;
+            eps_i_p_0_5 = eps_si;
             dop_term = dop_right;                         
         }
         
