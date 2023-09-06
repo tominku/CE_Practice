@@ -32,12 +32,13 @@ double deltaY = (total_height) / (Ny-1); // in meter
 // double deltaY = (bulk_height) / (Ny-1); // in meter  
 
 #define ijTok(i, j) (Nx*(j-1) + i)
-#define eps_ipj(i, j) eps_si
-#define eps_imj(i, j) eps_si
-#define eps_ijp(i, j) eps_si
-#define eps_ijm(i, j) eps_si
+// #define eps_ipj(i, j) eps_si
+// #define eps_imj(i, j) eps_si
+// #define eps_ijp(i, j) eps_si
+// #define eps_ijm(i, j) eps_si
 #define phi_at(i, j, phi_name, phi_center_name) ((j >= 1 && j <= Ny) ? phi_name(ijTok(i, j)) : 0)
 #define index_exist(i, j) ((j >= 1 && j <= Ny && i >= 1 && i <= Nx) ? true : false)
+
 
 struct Region
 {    
@@ -51,21 +52,47 @@ Region p_region = {"p_region", -2e23, eps_si, Nx-1-round(right_part_width/deltaX
 Region regions[] = {n_region, p_region};
 int num_regions = 2;
 
-bool belongs_to(int i_, int j_, Region &region)
-{
-    int i = i_ - 1;
-    int j = j_ - 1;
-    if (i >= region.x_begin && i <= region.x_end && 
-        j >= region.y_begin && j <= region.y_end)
+//Region contact1 = {"contact1", 0, 0, 0, 0, 0, -round(total_height/deltaY)};
+//Region contact2 = {"contact1", 0, 0, round((total_width-nwell_width)/deltaX), round(total_width/deltaX), 0, -round(total_height/deltaY)};
+Region contact1 = {"contact1", 0, 0, 0, 0, 0, round(total_height/deltaY)};
+Region contact2 = {"contact2", 0, 0, round(total_width/deltaX), round(total_width/deltaX), 0, round(total_height/deltaY)};
+Region contacts[] = {contact1, contact2};
+int num_contacts = 2;
+
+bool belongs_to(double i, double j, Region &region)
+{    
+    if (i >= (double)region.x_begin && i <= (double)region.x_end && 
+        j >= (double)region.y_begin && j <= (double)region.y_end)
         return true;
     else
         return false;
 }
 
+// bool belongs_to(double x, double y, Region &region)
+// {
+//     if (x >= (double)region.x_begin && x <= (double)region.x_end && 
+//         y >= (double)region.y_begin && y <= (double)region.y_end)
+//         return true;
+//     else
+//         return false;
+// }
+
+std::vector<Region> get_hit_regions(double x, double y) 
+{
+    std::vector<Region> hit_regions;
+    for (int i=0; i<num_regions; i++)
+    {
+        Region region = regions[i];
+        if (belongs_to(x, y, region))
+            hit_regions.push_back(region);
+    }
+    return hit_regions;
+}
+
 const string subject_name = "PN_2D_NP_regions";
 
-double dop_left = 5e23; // in m^3
-double dop_right = -2e23;
+// double dop_left = 5e23; // in m^3
+// double dop_right = -2e23;
 
 #define INCLUDE_VFLUX true
 
@@ -88,35 +115,61 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi, double boundary_potential)
     jac.zeros();       
         
     // set boundary condition
-    int i = 0;
-    for (int j=1; j<=Ny; ++j)
-    {
-        // left boundary
-        i = 1;      
-        int k = ijTok(i, j);
-        r(k) = phi(k) - compute_eq_phi(dop_left);
-        jac(k, k) = 1.0; 
-        // right boundary      
-        i = Nx;            
-        k = ijTok(i, j);
-        r(k) = phi(k) - compute_eq_phi(dop_right);
-        jac(k, k) = 1.0; 
-    }        
+    // int i = 0;
+    // for (int j=1; j<=Ny; ++j)
+    // {
+    //     // left boundary
+    //     i = 1;      
+    //     int k = ijTok(i, j);
+    //     r(k) = phi(k) - compute_eq_phi(dop_left);
+    //     jac(k, k) = 1.0; 
+    //     // right boundary      
+    //     i = Nx;            
+    //     k = ijTok(i, j);
+    //     r(k) = phi(k) - compute_eq_phi(dop_right);
+    //     jac(k, k) = 1.0; 
+    // }        
     
+    for (int c=0; c<num_contacts; c++)
+    {
+        Region contact = contacts[c];
+        for (int j=contact.y_begin; j<=contact.y_end; j++)
+        {
+            for (int i=contact.x_begin; i<=contact.x_end; i++)
+            {
+                for (int p=0; p<num_regions; p++)
+                {
+                    Region region = regions[p];
+                    if (belongs_to(i, j, region))
+                    {
+                        int k = ijTok(i+1, j+1);
+                        r(k) = phi(k) - compute_eq_phi(region.doping);
+                        jac(k, k) = 1.0; 
+                        break;
+                    }                    
+                }
+            }
+        }
+    } 
+
     double ion_term = 0.0;
-    std::vector<Region> current_regions;
+    double eps_ipj = eps_si;
+    double eps_imj = eps_si;
+    double eps_ijp = eps_si;
+    double eps_ijm = eps_si;   
+    std::vector<Region> current_regions;           
     for (int j=1; j<=Ny; j++)    
     {
         for (int i=(1+1); i<Nx; i++)        
         {   
             int k = ijTok(i, j);
-            double phi_ij = phi(k);                        
+            double phi_ij = phi(k);                                    
 
             current_regions.clear();
-            for (int r=0; r<num_regions; r++)
+            for (int p=0; p<num_regions; p++)
             {
-                Region region = regions[r];
-                if (belongs_to(i, j, region))
+                Region region = regions[p];
+                if (belongs_to((double)(i-1), (double)(j-1), region))
                     current_regions.push_back(region);
             }
             Region doping_region = current_regions.back();
@@ -158,14 +211,14 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi, double boundary_potential)
                 V *= 0.5;            
             }
             
-            double D_ipj = -eps_ipj(i,j) * phi_diff_ipi / deltaX;
-            double D_imj = -eps_imj(i,j) * phi_diff_iim / deltaX;                                        
+            double D_ipj = -eps_ipj * phi_diff_ipi / deltaX;
+            double D_imj = -eps_imj * phi_diff_iim / deltaX;                                        
 
             // Residual for the Poisson Equation
             if (INCLUDE_VFLUX)
             {
-                double D_ijp = -eps_ijp(i,j) * phi_diff_jpj / deltaY;
-                double D_ijm = -eps_ijm(i,j) * phi_diff_jjm / deltaY;        
+                double D_ijp = -eps_ijp * phi_diff_jpj / deltaY;
+                double D_ijm = -eps_ijm * phi_diff_jjm / deltaY;        
                 r(k) = s_ipj*D_ipj + s_imj*D_imj + s_ijp*D_ijp + s_ijm*D_ijm;            
             }
             else
@@ -177,18 +230,18 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi, double boundary_potential)
             // Jacobian for the nonlinear Poisson Equation
             if (INCLUDE_VFLUX)
             {
-                jac(k, k) = s_ipj*eps_ipj(i, j)/deltaX - s_imj*eps_imj(i, j)/deltaX +
-                    s_ijp*eps_ijp(i, j)/deltaY - s_ijm*eps_ijm(i, j)/deltaY;            
+                jac(k, k) = s_ipj*eps_ipj/deltaX - s_imj*eps_imj/deltaX +
+                    s_ijp*eps_ijp/deltaY - s_ijm*eps_ijm/deltaY;            
             }
             else
-                jac(k, k) = s_ipj*eps_ipj(i, j)/deltaX - s_imj*eps_imj(i, j)/deltaX;                
+                jac(k, k) = s_ipj*eps_ipj/deltaX - s_imj*eps_imj/deltaX;                
             
             jac(k, k) += V*q*n_int*(1.0/thermal)*( exp(phi_ij/thermal) + exp(-phi_ij/thermal) );
 
             jac(k, k) /= eps_0;
             
-            jac(k, ijTok(i+1, j)) = - s_ipj*eps_ipj(i, j) / deltaX;                        
-            jac(k, ijTok(i-1, j)) = s_imj*eps_imj(i, j) / deltaX;   
+            jac(k, ijTok(i+1, j)) = - s_ipj*eps_ipj / deltaX;                        
+            jac(k, ijTok(i-1, j)) = s_imj*eps_imj / deltaX;   
             jac(k, ijTok(i+1, j)) /= eps_0;
             jac(k, ijTok(i-1, j)) /= eps_0;
             
@@ -196,12 +249,12 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi, double boundary_potential)
             {
                 if (index_exist(i, j+1))
                 {
-                    jac(k, ijTok(i, j+1)) = - s_ijp*eps_ijp(i, j) / deltaY;
+                    jac(k, ijTok(i, j+1)) = - s_ijp*eps_ijp / deltaY;
                     jac(k, ijTok(i, j+1)) /= eps_0;
                 }
                 if (index_exist(i, j-1))                        
                 {
-                    jac(k, ijTok(i, j-1)) = s_ijm*eps_ijm(i, j) / deltaY;                                                                      
+                    jac(k, ijTok(i, j-1)) = s_ijm*eps_ijm / deltaY;                                                                      
                     jac(k, ijTok(i, j-1)) /= eps_0;
                 }
             }                                    
@@ -313,10 +366,10 @@ void fill_initial(vec &phi, string method)
         { 
             int k = ijTok(i, j);            
             current_regions.clear();
-            for (int r=0; r<num_regions; r++)
+            for (int p=0; p<num_regions; p++)
             {
-                Region region = regions[r];
-                if (belongs_to(i, j, region))
+                Region region = regions[p];
+                if (belongs_to(i-1, j-1, region))
                     current_regions.push_back(region);
             }
             Region doping_region = current_regions.back();
