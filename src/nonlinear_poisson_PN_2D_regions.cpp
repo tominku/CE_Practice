@@ -11,34 +11,62 @@
 using namespace arma; 
 
 const int Nx = 101;
-const int Ny = 21;
+const int Ny = 101;
 const int N = Nx * Ny;
 //double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
 double T = 300;    
 double thermal = k_B * T / q;
 
-// double total_width =  5e-7;
-// double total_height = 5e-7;
-// double nwell_width = 1e-7;
-// double nwell_height = 1e-7;
 double left_part_width = 2e-7;
+double right_part_width = 2e-7;
 double total_width = left_part_width*2;
 double deltaX = total_width / (Nx-1); // in meter  
 double total_height = 0.8e-7;
 double deltaY = (total_height) / (Ny-1); // in meter  
 
+// double bulk_width =  5e-7;
+// double bulk_height = 5e-7;
+// double nwell_width = 1e-7;
+// double nwell_height = 1e-7;
+// double deltaX = bulk_width / (Nx-1); // in meter  
+// double deltaY = (bulk_height) / (Ny-1); // in meter  
+
 #define ijTok(i, j) (Nx*(j-1) + i)
-//#define eps_i_p(i, j) ((i+0.5) < Ny ? eps_si : 0)
-//#define eps_i_m(i, j) ((i-0.5) > 1 ? eps_si : 0)
 #define eps_ipj(i, j) eps_si
 #define eps_imj(i, j) eps_si
 #define eps_ijp(i, j) eps_si
 #define eps_ijm(i, j) eps_si
-//#define phi_at(i, j, phi_name, phi_center_name) ((i) > 1 && (i) < Ny ? phi_name(ijTok(i, j)) : phi_center_name)
 #define phi_at(i, j, phi_name, phi_center_name) ((j >= 1 && j <= Ny) ? phi_name(ijTok(i, j)) : 0)
 #define index_exist(i, j) ((j >= 1 && j <= Ny && i >= 1 && i <= Nx) ? true : false)
 
-const string subject_name = "PN_2D_NP";
+struct Region
+{    
+    std::string id; double doping; double eps;   
+    int x_begin; int x_end;
+    int y_begin; int y_end;
+};
+// Region nwell_left = {"nwell_left", 1e23, eps_si, 0, round(nwell_width/deltaX), 1, };
+// Region nwell_right = {"nwell_right", 1e23, eps_si};
+// Region bulk = {"bulk", 1e21, eps_si};
+// Region regions[] = {bulk, nwell_left, nwell_right};
+
+Region n_region = {"n_region", 5e23, eps_si, 0, round(left_part_width/deltaX), 0, round(total_height/deltaY)};
+Region p_region = {"p_region", -2e23, eps_si, Nx-1-round(right_part_width/deltaX), Nx-1, 0, round(total_height/deltaY)};
+Region regions[] = {n_region, p_region};
+int num_regions = 2;
+
+bool belongs_to(int i_, int j_, Region &region)
+{
+    int i = i_ - 1;
+    int j = j_ - 1;
+    if (i >= region.x_begin && i <= region.x_end && 
+        j >= region.y_begin && j <= region.y_end)
+        return true;
+    else
+        return false;
+}
+
+const string subject_name = "PN_2D_NP_regions";
 
 double dop_left = 5e23; // in m^3
 // double dop_center = 2e23; // in m^3
@@ -46,7 +74,11 @@ double dop_left = 5e23; // in m^3
 double dop_right = -2e23;
 //double dop_right = -2e23;
 
-int interface_i = round(left_part_width/deltaX) + 1;
+//int interface_i = round(left_part_width/deltaX) + 1;
+// int left_nwell_begin_i = 1;
+// int left_nwell_end_i = round(nwell_width/deltaX) + 1;
+// int right_nwell_begin_i = round((bulk_width - nwell_width)/deltaX) + 1;
+// int right_nwell_end_i = round(bulk_width/deltaX) + 1;
 
 #define INCLUDE_VFLUX true
 
@@ -83,20 +115,23 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi, double boundary_potential)
     }        
     
     double ion_term = 0.0;
-
+    std::vector<Region> current_regions;
     for (int j=1; j<=Ny; j++)    
     {
         for (int i=(1+1); i<Nx; i++)        
         {   
             int k = ijTok(i, j);
             double phi_ij = phi(k);                        
-            
-            if (i < interface_i)                                                    
-                ion_term = dop_left;                                                       
-            else if (i == interface_i)            
-                ion_term = 0.5*(dop_left) + 0.5*(dop_right);                                              
-            else if (i > interface_i)            
-                ion_term = dop_right;                                                             
+
+            current_regions.clear();
+            for (int r=0; r<num_regions; r++)
+            {
+                Region region = regions[r];
+                if (belongs_to(i, j, region))
+                    current_regions.push_back(region);
+            }
+            Region doping_region = current_regions.back();
+            ion_term = doping_region.doping;            
 
             double phi_ipj = phi_at(i+1, j, phi, phi_ij);                           
             double phi_imj = phi_at(i-1, j, phi, phi_ij);                           
@@ -282,36 +317,22 @@ void save_current_densities(vec &phi_n)
 
 void fill_initial(vec &phi, string method)
 {        
-    double phi_1 = compute_eq_phi(dop_left);
-    double phi_Nx = compute_eq_phi(dop_right);
+    std::vector<Region> current_regions;    
     for (int j=1; j<=Ny; j++)
     {
         for (int i=1; i<=Nx; i++)
         { 
             int k = ijTok(i, j);            
-            if (i==1)  
-                phi(k) = phi_1;
-            else if (i==Nx)                            
-                phi(k) = phi_Nx;
-            else
+            current_regions.clear();
+            for (int r=0; r<num_regions; r++)
             {
-                if (method.compare("uniform") == 0)
-                {
-                    if (i <= interface_i)                
-                        phi(k) = phi_1;
-                    else
-                        phi(k) = phi_Nx;                            
-                }
-                else if (method.compare("linear") == 0)
-                {
-                    phi(k) = phi_1 + (phi_Nx - phi_1) * ((i-1)/(Nx-1));
-                }
-                else if (method.compare("random") == 0)
-                {
-                    double r = static_cast <double> (rand()) / static_cast <double> (RAND_MAX);
-                    phi(k) = r;
-                }
+                Region region = regions[r];
+                if (belongs_to(i, j, region))
+                    current_regions.push_back(region);
             }
+            Region doping_region = current_regions.back();
+            double eq_phi = compute_eq_phi(doping_region.doping);
+            phi(k) = eq_phi;
         }
      }      
 }
@@ -334,10 +355,7 @@ int main() {
         
         std::string log = fmt::format("BD {:.2f} V \n", start_potential + (0.1*i));            
         cout << log;        
-
-        plot_args args;
-        args.total_width = total_width;
-        args.N = N;    
+        
         vec n(N+1, arma::fill::zeros);
         n(span(1, N)) = n_int * exp(phi(span(1, N)) / thermal);
         n /= 1e6;        
