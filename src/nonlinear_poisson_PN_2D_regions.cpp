@@ -12,7 +12,7 @@
 using namespace arma; 
 
 const int Nx = 101;
-const int Ny = 101;
+const int Ny = 21;
 const int N = Nx * Ny;
 //double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
 double T = 300;    
@@ -37,7 +37,7 @@ double deltaY = (total_height) / (Ny-1); // in meter
 // #define eps_imj(i, j) eps_si
 // #define eps_ijp(i, j) eps_si
 // #define eps_ijm(i, j) eps_si
-#define phi_at(i, j, phi_name, phi_center_name) ((j >= 1 && j <= Ny) ? phi_name(ijTok(i, j)) : 0)
+#define phi_at(i, j, phi_name, phi_center_name) ((j >= 1 && j <= Ny && i >= 1 && i <= Nx) ? phi_name(ijTok(i, j)) : 0)
 #define index_exist(i, j) ((j >= 1 && j <= Ny && i >= 1 && i <= Nx) ? true : false)
 
 struct Coord
@@ -62,10 +62,17 @@ Region p_region = {"p_region", -2e23, eps_si, Nx-1-round(right_part_width/deltaX
 Region regions[] = {n_region, p_region};
 int num_regions = 2;
 
+const int min_x_index = 1;
+const int max_x_index = (total_width/deltaX) + 1;
+const int min_y_index = 1;
+const int max_y_index = (total_height/deltaX) + 1;
+
 //Region contact1 = {"contact1", 0, 0, 0, 0, 0, -round(total_height/deltaY)};
 //Region contact2 = {"contact1", 0, 0, round((total_width-nwell_width)/deltaX), round(total_width/deltaX), 0, -round(total_height/deltaY)};
-Region contact1 = {"contact1", 0, 0, 0, 0, 0, round(total_height/deltaY)};
-Region contact2 = {"contact2", 0, 0, round(total_width/deltaX), round(total_width/deltaX), 0, round(total_height/deltaY)};
+// Region contact1 = {"contact1", 0, 0, 0, 0, 0, round(total_height/deltaY)};
+// Region contact2 = {"contact2", 0, 0, round(total_width/deltaX), round(total_width/deltaX), 0, round(total_height/deltaY)};
+Region contact1 = {"contact1", 0, 0, 0, 0, 0, round((total_height/2)/deltaY)};
+Region contact2 = {"contact2", 0, 0, round(total_width/deltaX), round(total_width/deltaX), 0, round((total_height/2)/deltaY)};
 Region contacts[] = {contact1, contact2};
 int num_contacts = 2;
 
@@ -157,10 +164,14 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi, double boundary_potential)
     } 
 
     double ion_term = 0.0;
-    double eps_ipj = 0;
-    double eps_imj = 0;
-    double eps_ijp = 0;
-    double eps_ijm = 0;   
+    // double eps_ipj = 0;
+    // double eps_imj = 0;
+    // double eps_ijp = 0;
+    // double eps_ijm = 0;   
+    double eps_ipj = eps_si;
+    double eps_imj = eps_si;
+    double eps_ijp = eps_si;
+    double eps_ijm = eps_si;       
     std::vector<Region> current_regions;           
     std::map<string, Coord *> epsID_to_coord;     
     std::map<string, std::pair<double, uint>> epsID_to_eps;   
@@ -173,7 +184,7 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi, double boundary_potential)
             Coord coord(i-1, j-1);
             if (is_contact_node(coord))
                 continue;
-                
+
             int k = ijTok(i, j);
             double phi_ij = phi(k);                                    
 
@@ -213,12 +224,12 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi, double boundary_potential)
                     }
                 }
             }
-            eps_ipj = epsID_to_eps["eps_ipj"].first / epsID_to_eps["eps_ipj"].second;            
-            eps_imj = epsID_to_eps["eps_imj"].first / epsID_to_eps["eps_imj"].second;
-            if (epsID_to_eps["eps_ijp"].second > 0)
-                eps_ijp = epsID_to_eps["eps_ijp"].first / epsID_to_eps["eps_ijp"].second;
-            if (epsID_to_eps["eps_ijm"].second > 0)
-                eps_ijm = epsID_to_eps["eps_ijm"].first / epsID_to_eps["eps_ijm"].second;               
+            // eps_ipj = epsID_to_eps["eps_ipj"].first / epsID_to_eps["eps_ipj"].second;            
+            // eps_imj = epsID_to_eps["eps_imj"].first / epsID_to_eps["eps_imj"].second;
+            // if (epsID_to_eps["eps_ijp"].second > 0)
+            //     eps_ijp = epsID_to_eps["eps_ijp"].first / epsID_to_eps["eps_ijp"].second;
+            // if (epsID_to_eps["eps_ijm"].second > 0)
+            //     eps_ijm = epsID_to_eps["eps_ijm"].first / epsID_to_eps["eps_ijm"].second;               
 
             Region doping_region = current_regions.back();
             ion_term = doping_region.doping;                          
@@ -244,20 +255,14 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi, double boundary_potential)
             
             double V = deltaX*deltaY;
 
-            if (j == 1)      
-            {      
-                s_ipj *= 0.5;
-                s_imj *= 0.5;
-                s_ijm = 0;
-                V *= 0.5;            
-            }
-            else if(j == Ny)                  
-            {
-                s_ipj *= 0.5;
-                s_imj *= 0.5;
-                s_ijp = 0;
-                V *= 0.5;            
-            }
+            if (j == min_y_index)            
+                s_ijm = 0; s_ipj *= 0.5; s_imj *= 0.5; V *= 0.5;                        
+            if (j == max_y_index)                              
+                s_ijp = 0; s_ipj *= 0.5; s_imj *= 0.5; V *= 0.5;                        
+            if (i == min_x_index)            
+                s_imj = 0; s_ijp *= 0.5; s_ijm *= 0.5; V *= 0.5;                                        
+            if (i == max_x_index)            
+                s_ipj = 0; s_ijp *= 0.5; s_ijm *= 0.5; V *= 0.5;                                        
             
             double D_ipj = -eps_ipj * phi_diff_ipi / deltaX;
             double D_imj = -eps_imj * phi_diff_iim / deltaX;                                        
@@ -288,10 +293,16 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi, double boundary_potential)
 
             jac(k, k) /= eps_0;
             
-            jac(k, ijTok(i+1, j)) = - s_ipj*eps_ipj / deltaX;                        
-            jac(k, ijTok(i-1, j)) = s_imj*eps_imj / deltaX;   
-            jac(k, ijTok(i+1, j)) /= eps_0;
-            jac(k, ijTok(i-1, j)) /= eps_0;
+            if (index_exist(i+1, j))
+            {
+                jac(k, ijTok(i+1, j)) = - s_ipj*eps_ipj / deltaX; 
+                jac(k, ijTok(i+1, j)) /= eps_0;                       
+            }
+            if (index_exist(i-1, j))
+            {
+                jac(k, ijTok(i-1, j)) = s_imj*eps_imj / deltaX;               
+                jac(k, ijTok(i-1, j)) /= eps_0;
+            }
             
             if (INCLUDE_VFLUX)
             {

@@ -27,6 +27,9 @@ double nwell_height = 1e-7;
 double deltaX = bulk_width / (Nx-1); // in meter  
 double deltaY = (bulk_height) / (Ny-1); // in meter  
 
+double total_width = bulk_width;
+double total_height = bulk_height;
+
 #define ijTok(i, j) (Nx*(j-1) + i)
 #define phi_at(i, j, phi_name, phi_center_name) ((j >= 1 && j <= Ny) ? phi_name(ijTok(i, j)) : 0)
 #define index_exist(i, j) ((j >= 1 && j <= Ny && i >= 1 && i <= Nx) ? true : false)
@@ -48,6 +51,11 @@ struct Region
     int y_begin; int y_end;
 };
 
+const int min_x_index = 1;
+const int max_x_index = (total_width/deltaX) + 1;
+const int min_y_index = 1;
+const int max_y_index = (total_height/deltaX) + 1;
+
 Region bulk_region = {"bulk_region", -1e23, eps_si, 0, round(bulk_width/deltaX), 0, round(bulk_height/deltaY)};
 Region nwell_left_region = {"nwell_left_region", 1e23, eps_si, 
     0, round(nwell_width/deltaX), round((bulk_height-nwell_height)/deltaY), round(bulk_height/deltaY)};
@@ -56,18 +64,20 @@ Region nwell_right_region = {"nwell_right_region", 1e23, eps_si,
 Region regions[] = {bulk_region, nwell_left_region, nwell_right_region};
 int num_regions = 3;
 
-// Region contact1 = {"contact1", 0, 0, 
-//     0, 0, 
-//     round((bulk_height-(nwell_height/2))/deltaY), round(bulk_height/deltaY)};
-// Region contact2 = {"contact2", 0, 0,
-//     round(bulk_width/deltaX), round(bulk_width/deltaX), 
-//     round((bulk_height-(nwell_height/2))/deltaY), round(bulk_height/deltaY)};
 Region contact1 = {"contact1", 0, 0, 
     0, 0, 
-    round((bulk_height-(nwell_height))/deltaY), round(bulk_height/deltaY)};
+    round((bulk_height-(nwell_height/2))/deltaY), round(bulk_height/deltaY)};
 Region contact2 = {"contact2", 0, 0,
     round(bulk_width/deltaX), round(bulk_width/deltaX), 
-    round((bulk_height-(nwell_height))/deltaY), round(bulk_height/deltaY)};
+    round((bulk_height-(nwell_height/2))/deltaY), round(bulk_height/deltaY)};
+
+// Region contact1 = {"contact1", 0, 0, 
+//     0, 0, 
+//     round((bulk_height-(nwell_height))/deltaY), round(bulk_height/deltaY)};
+// Region contact2 = {"contact2", 0, 0,
+//     round(bulk_width/deltaX), round(bulk_width/deltaX), 
+//     round((bulk_height-(nwell_height))/deltaY), round(bulk_height/deltaY)};
+
 Region contacts[] = {contact1, contact2};
 int num_contacts = 2;
 
@@ -207,20 +217,14 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi, double boundary_potential)
             
             double V = deltaX*deltaY;
 
-            if (j == 1)      
-            {      
-                s_ipj *= 0.5;
-                s_imj *= 0.5;
-                s_ijm = 0;
-                V *= 0.5;            
-            }
-            else if(j == Ny)                  
-            {
-                s_ipj *= 0.5;
-                s_imj *= 0.5;
-                s_ijp = 0;
-                V *= 0.5;            
-            }
+            if (j == min_y_index)            
+                s_ijm = 0; s_ipj *= 0.5; s_imj *= 0.5; V *= 0.5;                        
+            if (j == max_y_index)                              
+                s_ijp = 0; s_ipj *= 0.5; s_imj *= 0.5; V *= 0.5;                        
+            if (i == min_x_index)            
+                s_imj = 0; s_ijp *= 0.5; s_ijm *= 0.5; V *= 0.5;                                        
+            if (i == max_x_index)            
+                s_ipj = 0; s_ijp *= 0.5; s_ijm *= 0.5; V *= 0.5; 
             
             double D_ipj = -eps_ipj * phi_diff_ipi / deltaX;
             double D_imj = -eps_imj * phi_diff_iim / deltaX;                                        
