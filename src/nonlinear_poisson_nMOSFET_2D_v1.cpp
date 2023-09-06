@@ -2,6 +2,7 @@
 #include <iostream> 
 #include <sciplot/sciplot.hpp>
 #include "util.cpp"
+#include <cassert> 
 
 #define FMT_HEADER_ONLY
 #include <fmt/format.h>
@@ -11,33 +12,34 @@
 using namespace arma; 
 
 const int Nx = 101;
-const int Ny = 101;
+const int Ny = 21;
 const int N = Nx * Ny;
 //double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
 double T = 300;    
 double thermal = k_B * T / q;
 
-double left_part_width = 2e-7;
-double right_part_width = 2e-7;
-double total_width = left_part_width*2;
-double deltaX = total_width / (Nx-1); // in meter  
-double total_height = 0.8e-7;
-double deltaY = (total_height) / (Ny-1); // in meter  
-
 // double bulk_width =  5e-7;
 // double bulk_height = 5e-7;
-// double nwell_width = 1e-7;
-// double nwell_height = 1e-7;
-// double deltaX = bulk_width / (Nx-1); // in meter  
-// double deltaY = (bulk_height) / (Ny-1); // in meter  
+double bulk_width =  5e-7;
+double bulk_height = 1e-7;
+double nwell_width = 1e-7;
+double nwell_height = 1e-7;
+double deltaX = bulk_width / (Nx-1); // in meter  
+double deltaY = (bulk_height) / (Ny-1); // in meter  
 
 #define ijTok(i, j) (Nx*(j-1) + i)
-#define eps_ipj(i, j) eps_si
-#define eps_imj(i, j) eps_si
-#define eps_ijp(i, j) eps_si
-#define eps_ijm(i, j) eps_si
 #define phi_at(i, j, phi_name, phi_center_name) ((j >= 1 && j <= Ny) ? phi_name(ijTok(i, j)) : 0)
 #define index_exist(i, j) ((j >= 1 && j <= Ny && i >= 1 && i <= Nx) ? true : false)
+
+struct Coord
+{    
+    double x; double y;
+    Coord(double _x, double _y)
+    {
+        x = _x;
+        y = _y;
+    }
+};
 
 struct Region
 {    
@@ -45,39 +47,52 @@ struct Region
     int x_begin; int x_end;
     int y_begin; int y_end;
 };
-// Region nwell_left = {"nwell_left", 1e23, eps_si, 0, round(nwell_width/deltaX), 1, };
-// Region nwell_right = {"nwell_right", 1e23, eps_si};
-// Region bulk = {"bulk", 1e21, eps_si};
-// Region regions[] = {bulk, nwell_left, nwell_right};
 
-Region n_region = {"n_region", 5e23, eps_si, 0, round(left_part_width/deltaX), 0, round(total_height/deltaY)};
-Region p_region = {"p_region", -2e23, eps_si, 0, round(right_part_width/deltaX), 0, round(total_height/deltaY)};
-Region regions[] = {n_region, p_region};
+Region bulk_region = {"bulk_region", -1e23, eps_si, 0, round(bulk_width/deltaX), 0, round(bulk_height/deltaY)};
+Region nwell_left_region = {"nwell_left_region", 1e23, eps_si, 
+    0, round(nwell_width/deltaX), round((bulk_height-nwell_height)/deltaY), round(bulk_height/deltaY)};
+Region nwell_right_region = {"nwell_right_region", 1e23, eps_si,
+    Nx-1-round(nwell_width/deltaX), Nx-1, round((bulk_height-nwell_height)/deltaY), round(bulk_height/deltaY)};
+Region regions[] = {bulk_region, nwell_left_region, nwell_right_region};
+int num_regions = 3;
 
+// Region contact1 = {"contact1", 0, 0, 
+//     0, 0, 
+//     round((bulk_height-(nwell_height/2))/deltaY), round(bulk_height/deltaY)};
+// Region contact2 = {"contact2", 0, 0,
+//     round(bulk_width/deltaX), round(bulk_width/deltaX), 
+//     round((bulk_height-(nwell_height/2))/deltaY), round(bulk_height/deltaY)};
+Region contact1 = {"contact1", 0, 0, 
+    0, 0, 
+    round((bulk_height-(nwell_height))/deltaY), round(bulk_height/deltaY)};
+Region contact2 = {"contact2", 0, 0,
+    round(bulk_width/deltaX), round(bulk_width/deltaX), 
+    round((bulk_height-(nwell_height))/deltaY), round(bulk_height/deltaY)};
+Region contacts[] = {contact1, contact2};
+int num_contacts = 2;
+
+bool belongs_to(double i, double j, Region &region)
+{    
+    if (i >= (double)region.x_begin && i <= (double)region.x_end && 
+        j >= (double)region.y_begin && j <= (double)region.y_end)
+        return true;
+    else
+        return false;
+}
 
 const string subject_name = "MOSFET_2D_NP";
-
-double dop_left = 5e23; // in m^3
-// double dop_center = 2e23; // in m^3
-//double dop_left = 5e23; // in m^3
-double dop_right = -2e23;
-//double dop_right = -2e23;
-
-//int interface_i = round(left_part_width/deltaX) + 1;
-// int left_nwell_begin_i = 1;
-// int left_nwell_end_i = round(nwell_width/deltaX) + 1;
-// int right_nwell_begin_i = round((bulk_width - nwell_width)/deltaX) + 1;
-// int right_nwell_end_i = round(bulk_width/deltaX) + 1;
 
 #define INCLUDE_VFLUX true
 
 double compute_eq_phi(double doping_density)
 {
-    double phi = 0;
-    if (doping_density > 0)
-        phi = thermal * log(doping_density/n_int);
-    else            
-        phi = - thermal * log(abs(doping_density)/n_int);
+    /* 
+        N^+_{dop} == n_int * 2 * sinh(phi/thermal)        
+        sinh(phi/thermal) = N^+_{dop} / (n_int * 2)
+        phi/thermal = asinh( N^+_{dop} / (n_int * 2) )
+        phi = thermal *  asinh( N^+_{dop} / (n_int * 2) )
+    */    
+    double phi = thermal *  asinh( doping_density / (n_int * 2) );    
     
     return phi;        
 }
@@ -85,39 +100,91 @@ double compute_eq_phi(double doping_density)
 void r_and_jacobian(vec &r, sp_mat &jac, vec &phi, double boundary_potential)
 {
     r.fill(0.0);        
-    jac.zeros();       
-        
-    // set boundary condition
-    int i = 0;
-    for (int j=1; j<=Ny; ++j)
-    {
-        // left boundary
-        i = 1;      
-        int k = ijTok(i, j);
-        r(k) = phi(k) - compute_eq_phi(dop_left);
-        jac(k, k) = 1.0; 
-        // right boundary      
-        i = Nx;            
-        k = ijTok(i, j);
-        r(k) = phi(k) - compute_eq_phi(dop_right);
-        jac(k, k) = 1.0; 
-    }        
+    jac.zeros();             
     
+    for (int c=0; c<num_contacts; c++)
+    {
+        Region contact = contacts[c];
+        for (int j=contact.y_begin; j<=contact.y_end; j++)
+        {
+            for (int i=contact.x_begin; i<=contact.x_end; i++)
+            {
+                for (int p=0; p<num_regions; p++)
+                {
+                    Region region = regions[p];
+                    if (belongs_to(i, j, region))
+                    {
+                        int k = ijTok(i+1, j+1);
+                        r(k) = phi(k) - compute_eq_phi(region.doping);
+                        jac(k, k) = 1.0; 
+                    }                    
+                }
+            }
+        }
+    } 
+
     double ion_term = 0.0;
+    double eps_ipj = eps_si;
+    double eps_imj = eps_si;
+    double eps_ijp = eps_si;
+    double eps_ijm = eps_si;   
+    std::vector<Region> current_regions;           
+    std::map<string, Coord *> epsID_to_coord;     
+    std::map<string, std::pair<double, uint>> epsID_to_eps;   
 
     for (int j=1; j<=Ny; j++)    
     {
         for (int i=(1+1); i<Nx; i++)        
         {   
+            Coord coord(i-1, j-1);
             int k = ijTok(i, j);
-            double phi_ij = phi(k);                        
-            
-            if (i < interface_i)                                                    
-                ion_term = dop_left;                                                       
-            else if (i == interface_i)            
-                ion_term = 0.5*(dop_left) + 0.5*(dop_right);                                              
-            else if (i > interface_i)            
-                ion_term = dop_right;                                                             
+            double phi_ij = phi(k);                                    
+
+            epsID_to_coord.clear();
+            Coord coord_ipj(i-1 + 0.5, j-1);
+            Coord coord_imj(i-1 - 0.5, j-1);
+            Coord coord_ijp(i-1, j-1 + 0.5);
+            Coord coord_ijm(i-1, j-1 - 0.5);
+            epsID_to_coord["eps_ipj"] = &coord_ipj;
+            epsID_to_coord["eps_imj"] = &coord_imj;
+            epsID_to_coord["eps_ijp"] = &coord_ijp;
+            epsID_to_coord["eps_ijm"] = &coord_ijm;
+
+            epsID_to_eps["eps_ipj"] = std::pair<double, uint>(0, 0);
+            epsID_to_eps["eps_imj"] = std::pair<double, uint>(0, 0);
+            epsID_to_eps["eps_ijp"] = std::pair<double, uint>(0, 0);
+            epsID_to_eps["eps_ijm"] = std::pair<double, uint>(0, 0);
+
+            current_regions.clear();
+            for (int p=0; p<num_regions; p++)
+            {
+                Region region = regions[p];
+                if (belongs_to(coord.x, coord.y, region))
+                {
+                    current_regions.push_back(region);
+                    map<string, Coord *>::iterator it;           
+                    for (it = epsID_to_coord.begin(); it != epsID_to_coord.end(); ++it)
+                    {
+                        Coord *fluxCoord = it->second;
+                        if (belongs_to(fluxCoord->x, fluxCoord->y, region))   
+                        {                     
+                            std::pair<double, uint> eps_info = epsID_to_eps[it->first];
+                            double eps_sum = eps_info.first;
+                            uint num_overlaps = eps_info.second;
+                            epsID_to_eps[it->first] = std::pair<double, uint>(eps_sum + region.eps, num_overlaps+1);
+                        }
+                    }
+                }
+            }
+            // eps_ipj = epsID_to_eps["eps_ipj"].first / epsID_to_eps["eps_ipj"].second;            
+            // eps_imj = epsID_to_eps["eps_imj"].first / epsID_to_eps["eps_imj"].second;
+            // if (epsID_to_eps["eps_ijp"].second > 0)
+            //     eps_ijp = epsID_to_eps["eps_ijp"].first / epsID_to_eps["eps_ijp"].second;
+            // if (epsID_to_eps["eps_ijm"].second > 0)
+            //     eps_ijm = epsID_to_eps["eps_ijm"].first / epsID_to_eps["eps_ijm"].second;               
+
+            Region doping_region = current_regions.back();
+            ion_term = doping_region.doping;                          
 
             double phi_ipj = phi_at(i+1, j, phi, phi_ij);                           
             double phi_imj = phi_at(i-1, j, phi, phi_ij);                           
@@ -155,14 +222,14 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi, double boundary_potential)
                 V *= 0.5;            
             }
             
-            double D_ipj = -eps_ipj(i,j) * phi_diff_ipi / deltaX;
-            double D_imj = -eps_imj(i,j) * phi_diff_iim / deltaX;                                        
+            double D_ipj = -eps_ipj * phi_diff_ipi / deltaX;
+            double D_imj = -eps_imj * phi_diff_iim / deltaX;                                        
 
             // Residual for the Poisson Equation
             if (INCLUDE_VFLUX)
             {
-                double D_ijp = -eps_ijp(i,j) * phi_diff_jpj / deltaY;
-                double D_ijm = -eps_ijm(i,j) * phi_diff_jjm / deltaY;        
+                double D_ijp = -eps_ijp * phi_diff_jpj / deltaY;
+                double D_ijm = -eps_ijm * phi_diff_jjm / deltaY;        
                 r(k) = s_ipj*D_ipj + s_imj*D_imj + s_ijp*D_ijp + s_ijm*D_ijm;            
             }
             else
@@ -174,18 +241,18 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi, double boundary_potential)
             // Jacobian for the nonlinear Poisson Equation
             if (INCLUDE_VFLUX)
             {
-                jac(k, k) = s_ipj*eps_ipj(i, j)/deltaX - s_imj*eps_imj(i, j)/deltaX +
-                    s_ijp*eps_ijp(i, j)/deltaY - s_ijm*eps_ijm(i, j)/deltaY;            
+                jac(k, k) = s_ipj*eps_ipj/deltaX - s_imj*eps_imj/deltaX +
+                    s_ijp*eps_ijp/deltaY - s_ijm*eps_ijm/deltaY;            
             }
             else
-                jac(k, k) = s_ipj*eps_ipj(i, j)/deltaX - s_imj*eps_imj(i, j)/deltaX;                
+                jac(k, k) = s_ipj*eps_ipj/deltaX - s_imj*eps_imj/deltaX;                
             
             jac(k, k) += V*q*n_int*(1.0/thermal)*( exp(phi_ij/thermal) + exp(-phi_ij/thermal) );
 
             jac(k, k) /= eps_0;
             
-            jac(k, ijTok(i+1, j)) = - s_ipj*eps_ipj(i, j) / deltaX;                        
-            jac(k, ijTok(i-1, j)) = s_imj*eps_imj(i, j) / deltaX;   
+            jac(k, ijTok(i+1, j)) = - s_ipj*eps_ipj / deltaX;                        
+            jac(k, ijTok(i-1, j)) = s_imj*eps_imj / deltaX;   
             jac(k, ijTok(i+1, j)) /= eps_0;
             jac(k, ijTok(i-1, j)) /= eps_0;
             
@@ -193,12 +260,12 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi, double boundary_potential)
             {
                 if (index_exist(i, j+1))
                 {
-                    jac(k, ijTok(i, j+1)) = - s_ijp*eps_ijp(i, j) / deltaY;
+                    jac(k, ijTok(i, j+1)) = - s_ijp*eps_ijp / deltaY;
                     jac(k, ijTok(i, j+1)) /= eps_0;
                 }
                 if (index_exist(i, j-1))                        
                 {
-                    jac(k, ijTok(i, j-1)) = s_ijm*eps_ijm(i, j) / deltaY;                                                                      
+                    jac(k, ijTok(i, j-1)) = s_ijm*eps_ijm / deltaY;                                                                      
                     jac(k, ijTok(i, j-1)) /= eps_0;
                 }
             }                                    
@@ -303,36 +370,22 @@ void save_current_densities(vec &phi_n)
 
 void fill_initial(vec &phi, string method)
 {        
-    double phi_1 = compute_eq_phi(dop_left);
-    double phi_Nx = compute_eq_phi(dop_right);
+    std::vector<Region> current_regions;    
     for (int j=1; j<=Ny; j++)
     {
         for (int i=1; i<=Nx; i++)
         { 
             int k = ijTok(i, j);            
-            if (i==1)  
-                phi(k) = phi_1;
-            else if (i==Nx)                            
-                phi(k) = phi_Nx;
-            else
+            current_regions.clear();
+            for (int p=0; p<num_regions; p++)
             {
-                if (method.compare("uniform") == 0)
-                {
-                    if (i <= interface_i)                
-                        phi(k) = phi_1;
-                    else
-                        phi(k) = phi_Nx;                            
-                }
-                else if (method.compare("linear") == 0)
-                {
-                    phi(k) = phi_1 + (phi_Nx - phi_1) * ((i-1)/(Nx-1));
-                }
-                else if (method.compare("random") == 0)
-                {
-                    double r = static_cast <double> (rand()) / static_cast <double> (RAND_MAX);
-                    phi(k) = r;
-                }
+                Region region = regions[p];
+                if (belongs_to(i-1, j-1, region))
+                    current_regions.push_back(region);
             }
+            Region doping_region = current_regions.back();
+            double eq_phi = compute_eq_phi(doping_region.doping);
+            phi(k) = eq_phi;
         }
      }      
 }
@@ -355,10 +408,7 @@ int main() {
         
         std::string log = fmt::format("BD {:.2f} V \n", start_potential + (0.1*i));            
         cout << log;        
-
-        plot_args args;
-        args.bulk_width = bulk_width;
-        args.N = N;    
+        
         vec n(N+1, arma::fill::zeros);
         n(span(1, N)) = n_int * exp(phi(span(1, N)) / thermal);
         n /= 1e6;        

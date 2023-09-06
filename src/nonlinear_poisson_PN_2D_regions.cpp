@@ -139,7 +139,6 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi, double boundary_potential)
                         int k = ijTok(i+1, j+1);
                         r(k) = phi(k) - compute_eq_phi(region.doping);
                         jac(k, k) = 1.0; 
-                        break;
                     }                    
                 }
             }
