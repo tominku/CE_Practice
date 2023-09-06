@@ -12,26 +12,33 @@
 using namespace arma; 
 
 const int Nx = 101;
-const int Ny = 21;
+const int Ny = 51;
 const int N = Nx * Ny;
 //double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
 double T = 300;    
 double thermal = k_B * T / q;
 
+double bulk_width = 10e-7;
+double left_part_width = 2e-7;
+double right_part_width = 2e-7;
+double total_width = bulk_width;
+double deltaX = total_width / (Nx-1); // in meter  
+double bulk_height = 5e-7;
+double total_height = bulk_height;
+double deltaY = (total_height) / (Ny-1); // in meter  
+
 // double bulk_width =  5e-7;
 // double bulk_height = 5e-7;
-//double bulk_width =  5e-7;
-double bulk_width =  8e-7;
-double bulk_height = 1e-7;
-double nwell_width = 1e-7;
-double nwell_height = 1e-7;
-double deltaX = bulk_width / (Nx-1); // in meter  
-double deltaY = (bulk_height) / (Ny-1); // in meter  
-
-double total_width = bulk_width;
-double total_height = bulk_height;
+// double nwell_width = 1e-7;
+// double nwell_height = 1e-7;
+// double deltaX = bulk_width / (Nx-1); // in meter  
+// double deltaY = (bulk_height) / (Ny-1); // in meter  
 
 #define ijTok(i, j) (Nx*(j-1) + i)
+// #define eps_ipj(i, j) eps_si
+// #define eps_imj(i, j) eps_si
+// #define eps_ijp(i, j) eps_si
+// #define eps_ijm(i, j) eps_si
 #define phi_at(i, j, phi_name, phi_center_name) ((j >= 1 && j <= Ny && i >= 1 && i <= Nx) ? phi_name(ijTok(i, j)) : 0)
 #define index_exist(i, j) ((j >= 1 && j <= Ny && i >= 1 && i <= Nx) ? true : false)
 
@@ -52,33 +59,23 @@ struct Region
     int y_begin; int y_end;
 };
 
+Region bulk = {"p_region", -2e23, eps_si, 0, Nx-1, 0, round(total_height/deltaY)};
+Region n_region = {"n_region", 5e23, eps_si, 0, round(left_part_width/deltaX), 0, round(total_height/deltaY)};
+Region n_region2 = {"n_region2", 5e23, eps_si, Nx-1-round(right_part_width/deltaX), Nx-1, 0, round(total_height/deltaY)};
+Region regions[] = {bulk, n_region, n_region2};
+int num_regions = 3;
+
 const int min_x_index = 1;
 const int max_x_index = (total_width/deltaX) + 1;
 const int min_y_index = 1;
 const int max_y_index = (total_height/deltaX) + 1;
 
-Region bulk_region = {"bulk_region", -1e21, eps_si, 0, round(bulk_width/deltaX), 0, round(bulk_height/deltaY)};
-Region nwell_left_region = {"nwell_left_region", 5e23, eps_si, 
-    0, round(nwell_width/deltaX), round((bulk_height-nwell_height)/deltaY), round(bulk_height/deltaY)};
-Region nwell_right_region = {"nwell_right_region", -5e23, eps_si,
-    Nx-1-round(nwell_width/deltaX), Nx-1, round((bulk_height-nwell_height)/deltaY), round(bulk_height/deltaY)};
-Region regions[] = {bulk_region, nwell_left_region, nwell_right_region};
-int num_regions = 3;
-
-Region contact1 = {"contact1", 0, 0, 
-    0, 0, 
-    round((bulk_height-(nwell_height/2))/deltaY), round(bulk_height/deltaY)};
-Region contact2 = {"contact2", 0, 0,
-    round(bulk_width/deltaX), round(bulk_width/deltaX), 
-    round((bulk_height-(nwell_height/2))/deltaY), round(bulk_height/deltaY)};
-
-// Region contact1 = {"contact1", 0, 0, 
-//     0, 0, 
-//     round((bulk_height-(nwell_height))/deltaY), round(bulk_height/deltaY)};
-// Region contact2 = {"contact2", 0, 0,
-//     round(bulk_width/deltaX), round(bulk_width/deltaX), 
-//     round((bulk_height-(nwell_height))/deltaY), round(bulk_height/deltaY)};
-
+//Region contact1 = {"contact1", 0, 0, 0, 0, 0, -round(total_height/deltaY)};
+//Region contact2 = {"contact1", 0, 0, round((total_width-nwell_width)/deltaX), round(total_width/deltaX), 0, -round(total_height/deltaY)};
+// Region contact1 = {"contact1", 0, 0, 0, 0, 0, round(total_height/deltaY)};
+// Region contact2 = {"contact2", 0, 0, round(total_width/deltaX), round(total_width/deltaX), 0, round(total_height/deltaY)};
+Region contact1 = {"contact1", 0, 0, 0, 0, 0, round((total_height/2)/deltaY)};
+Region contact2 = {"contact2", 0, 0, round(total_width/deltaX), round(total_width/deltaX), 0, round((total_height/2)/deltaY)};
 Region contacts[] = {contact1, contact2};
 int num_contacts = 2;
 
@@ -91,7 +88,31 @@ bool belongs_to(double i, double j, Region &region)
         return false;
 }
 
-const string subject_name = "MOSFET_2D_NP";
+// bool belongs_to(double x, double y, Region &region)
+// {
+//     if (x >= (double)region.x_begin && x <= (double)region.x_end && 
+//         y >= (double)region.y_begin && y <= (double)region.y_end)
+//         return true;
+//     else
+//         return false;
+// }
+
+std::vector<Region> get_hit_regions(double x, double y) 
+{
+    std::vector<Region> hit_regions;
+    for (int i=0; i<num_regions; i++)
+    {
+        Region region = regions[i];
+        if (belongs_to(x, y, region))
+            hit_regions.push_back(region);
+    }
+    return hit_regions;
+}
+
+const string subject_name = "NPN_2D_NP_regions";
+
+// double dop_left = 5e23; // in m^3
+// double dop_right = -2e23;
 
 #define INCLUDE_VFLUX true
 
@@ -146,18 +167,23 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi, double boundary_potential)
     } 
 
     double ion_term = 0.0;
+    // double eps_ipj = 0;
+    // double eps_imj = 0;
+    // double eps_ijp = 0;
+    // double eps_ijm = 0;   
     double eps_ipj = eps_si;
     double eps_imj = eps_si;
     double eps_ijp = eps_si;
-    double eps_ijm = eps_si;   
+    double eps_ijm = eps_si;       
     std::vector<Region> current_regions;           
     std::map<string, Coord *> epsID_to_coord;     
     std::map<string, std::pair<double, uint>> epsID_to_eps;   
 
     for (int j=1; j<=Ny; j++)    
     {
+        //for (int i=(1+1); i<Nx; i++)        
         for (int i=1; i<=Nx; i++)        
-        {   
+        {               
             Coord coord(i-1, j-1);
             if (is_contact_node(coord))
                 continue;
@@ -175,10 +201,10 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi, double boundary_potential)
             epsID_to_coord["eps_ijp"] = &coord_ijp;
             epsID_to_coord["eps_ijm"] = &coord_ijm;
 
-            // epsID_to_eps["eps_ipj"] = std::pair<double, uint>(0, 0);
-            // epsID_to_eps["eps_imj"] = std::pair<double, uint>(0, 0);
-            // epsID_to_eps["eps_ijp"] = std::pair<double, uint>(0, 0);
-            // epsID_to_eps["eps_ijm"] = std::pair<double, uint>(0, 0);
+            epsID_to_eps["eps_ipj"] = std::pair<double, uint>(0, 0);
+            epsID_to_eps["eps_imj"] = std::pair<double, uint>(0, 0);
+            epsID_to_eps["eps_ijp"] = std::pair<double, uint>(0, 0);
+            epsID_to_eps["eps_ijm"] = std::pair<double, uint>(0, 0);
 
             current_regions.clear();
             for (int p=0; p<num_regions; p++)
@@ -239,7 +265,7 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi, double boundary_potential)
             if (i == min_x_index)            
                 s_imj = 0; s_ijp *= 0.5; s_ijm *= 0.5; V *= 0.5;                                        
             if (i == max_x_index)            
-                s_ipj = 0; s_ijp *= 0.5; s_ijm *= 0.5; V *= 0.5; 
+                s_ipj = 0; s_ijp *= 0.5; s_ijm *= 0.5; V *= 0.5;                                        
             
             double D_ipj = -eps_ipj * phi_diff_ipi / deltaX;
             double D_imj = -eps_imj * phi_diff_iim / deltaX;                                        
