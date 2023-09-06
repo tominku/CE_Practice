@@ -112,23 +112,7 @@ double compute_eq_phi(double doping_density)
 void r_and_jacobian(vec &r, sp_mat &jac, vec &phi, double boundary_potential)
 {
     r.fill(0.0);        
-    jac.zeros();       
-        
-    // set boundary condition
-    // int i = 0;
-    // for (int j=1; j<=Ny; ++j)
-    // {
-    //     // left boundary
-    //     i = 1;      
-    //     int k = ijTok(i, j);
-    //     r(k) = phi(k) - compute_eq_phi(dop_left);
-    //     jac(k, k) = 1.0; 
-    //     // right boundary      
-    //     i = Nx;            
-    //     k = ijTok(i, j);
-    //     r(k) = phi(k) - compute_eq_phi(dop_right);
-    //     jac(k, k) = 1.0; 
-    // }        
+    jac.zeros();             
     
     for (int c=0; c<num_contacts; c++)
     {
