@@ -45,10 +45,6 @@ struct Region
     int x_begin; int x_end;
     int y_begin; int y_end;
 };
-// Region nwell_left = {"nwell_left", 1e23, eps_si, 0, round(nwell_width/deltaX), 1, };
-// Region nwell_right = {"nwell_right", 1e23, eps_si};
-// Region bulk = {"bulk", 1e21, eps_si};
-// Region regions[] = {bulk, nwell_left, nwell_right};
 
 Region n_region = {"n_region", 5e23, eps_si, 0, round(left_part_width/deltaX), 0, round(total_height/deltaY)};
 Region p_region = {"p_region", -2e23, eps_si, Nx-1-round(right_part_width/deltaX), Nx-1, 0, round(total_height/deltaY)};
@@ -69,26 +65,19 @@ bool belongs_to(int i_, int j_, Region &region)
 const string subject_name = "PN_2D_NP_regions";
 
 double dop_left = 5e23; // in m^3
-// double dop_center = 2e23; // in m^3
-//double dop_left = 5e23; // in m^3
 double dop_right = -2e23;
-//double dop_right = -2e23;
-
-//int interface_i = round(left_part_width/deltaX) + 1;
-// int left_nwell_begin_i = 1;
-// int left_nwell_end_i = round(nwell_width/deltaX) + 1;
-// int right_nwell_begin_i = round((bulk_width - nwell_width)/deltaX) + 1;
-// int right_nwell_end_i = round(bulk_width/deltaX) + 1;
 
 #define INCLUDE_VFLUX true
 
 double compute_eq_phi(double doping_density)
 {
-    double phi = 0;
-    if (doping_density > 0)
-        phi = thermal * log(doping_density/n_int);
-    else            
-        phi = - thermal * log(abs(doping_density)/n_int);
+    /* 
+        N^+_{dop} == n_int * 2 * sinh(phi/thermal)        
+        sinh(phi/thermal) = N^+_{dop} / (n_int * 2)
+        phi/thermal = asinh( N^+_{dop} / (n_int * 2) )
+        phi = thermal *  asinh( N^+_{dop} / (n_int * 2) )
+    */    
+    double phi = thermal *  asinh( doping_density / (n_int * 2) );    
     
     return phi;        
 }
