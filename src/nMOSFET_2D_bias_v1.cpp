@@ -22,14 +22,14 @@ double thermal = k_B * T / q;
 // double bulk_height = 5e-7;
 //double bulk_width =  5e-7;
 double bulk_width =  8e-7;
-double bulk_height = 1990e-9;
-double ox_height = 10e-9;
+double bulk_height = 20e-7;
 double nwell_width = 1e-7;
 double nwell_height = 1e-7;
+double deltaX = bulk_width / (Nx-1); // in meter  
+double deltaY = (bulk_height) / (Ny-1); // in meter  
+
 double total_width = bulk_width;
-double total_height = bulk_height + ox_height;
-double deltaX = total_width / (Nx-1); // in meter  
-double deltaY = (total_height) / (Ny-1); // in meter  
+double total_height = bulk_height;
 
 #define ijTok(i, j) (Nx*(j-1) + i)
 #define phi_at(i, j, phi_name, phi_center_name) ((j >= 1 && j <= Ny && i >= 1 && i <= Nx) ? phi_name(ijTok(i, j)) : 0)
@@ -58,13 +58,12 @@ const int min_y_index = 1;
 const int max_y_index = (total_height/deltaX) + 1;
 
 Region bulk_region = {"bulk_region", -5e21, eps_si, 0, round(bulk_width/deltaX), 0, round(bulk_height/deltaY)};
-Region ox_region = {"ox_region", 0, eps_ox, 0, round(bulk_width/deltaX), round(bulk_height/deltaY), round(total_height/deltaY)};
 Region nwell_left_region = {"nwell_left_region", 5e23, eps_si, 
     0, round(nwell_width/deltaX), round((bulk_height-nwell_height)/deltaY), round(bulk_height/deltaY)};
 Region nwell_right_region = {"nwell_right_region", 5e23, eps_si,
     Nx-1-round(nwell_width/deltaX), Nx-1, round((bulk_height-nwell_height)/deltaY), round(bulk_height/deltaY)};
-Region regions[] = {bulk_region, ox_region, nwell_left_region, nwell_right_region};
-int num_regions = 4;
+Region regions[] = {bulk_region, nwell_left_region, nwell_right_region};
+int num_regions = 3;
 
 Region contact1 = {"contact1", 0, 0, 
     0, 0, 
