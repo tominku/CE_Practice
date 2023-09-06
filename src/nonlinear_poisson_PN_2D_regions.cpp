@@ -119,6 +119,17 @@ double compute_eq_phi(double doping_density)
     return phi;        
 }
 
+bool is_contact_node(Coord coord)
+{
+    for (int c=0; c<num_contacts; c++)
+    {
+        Region contact = contacts[c];
+        if (belongs_to(coord.x, coord.y, contact))
+            return true;
+    }
+    return false;
+}
+
 void r_and_jacobian(vec &r, sp_mat &jac, vec &phi, double boundary_potential)
 {
     r.fill(0.0);        
@@ -156,9 +167,13 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi, double boundary_potential)
 
     for (int j=1; j<=Ny; j++)    
     {
-        for (int i=(1+1); i<Nx; i++)        
-        {   
+        //for (int i=(1+1); i<Nx; i++)        
+        for (int i=1; i<=Nx; i++)        
+        {               
             Coord coord(i-1, j-1);
+            if (is_contact_node(coord))
+                continue;
+                
             int k = ijTok(i, j);
             double phi_ij = phi(k);                                    
 
