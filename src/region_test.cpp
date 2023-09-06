@@ -9,6 +9,13 @@ struct Region
     std::string id;
     double doping;
     double eps;   
+
+    Region(string id_, double doping_, double eps_)
+    {
+        id = id_;
+        doping = doping_;
+        eps = eps_;
+    }
 };
 Region nwell_left = {"nwell_left", 1e23, eps_si};
 Region nwell_right = {"nwell_right", 1e23, eps_si};
@@ -23,4 +30,8 @@ int main() {
         std::cout << region.id << ", " << region.doping << endl;
         //std::cout << "size of regions is:" << sizeof(regions) << endl;
     }    
+
+    Region testRegion("testRegion", 2, 3);
+    std::string debug_string = fmt::format("{}", testRegion.doping);
+    std::cout << testRegion.id << ", " << testRegion.doping << endl;
 }

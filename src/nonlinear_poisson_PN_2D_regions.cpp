@@ -2,6 +2,7 @@
 #include <iostream> 
 #include <sciplot/sciplot.hpp>
 #include "util.cpp"
+#include <cassert> 
 
 #define FMT_HEADER_ONLY
 #include <fmt/format.h>
@@ -39,6 +40,15 @@ double deltaY = (total_height) / (Ny-1); // in meter
 #define phi_at(i, j, phi_name, phi_center_name) ((j >= 1 && j <= Ny) ? phi_name(ijTok(i, j)) : 0)
 #define index_exist(i, j) ((j >= 1 && j <= Ny && i >= 1 && i <= Nx) ? true : false)
 
+struct Coord
+{    
+    double x; double y;
+    Coord(double _x, double _y)
+    {
+        x = _x;
+        y = _y;
+    }
+};
 
 struct Region
 {    
@@ -137,27 +147,67 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi, double boundary_potential)
     } 
 
     double ion_term = 0.0;
-    double eps_ipj = eps_si;
-    double eps_imj = eps_si;
-    double eps_ijp = eps_si;
-    double eps_ijm = eps_si;   
+    double eps_ipj = 0;
+    double eps_imj = 0;
+    double eps_ijp = 0;
+    double eps_ijm = 0;   
     std::vector<Region> current_regions;           
+    std::map<string, Coord *> epsID_to_coord;     
+    std::map<string, std::pair<double, uint>> epsID_to_eps;   
+
     for (int j=1; j<=Ny; j++)    
     {
         for (int i=(1+1); i<Nx; i++)        
         {   
+            Coord coord(i-1, j-1);
             int k = ijTok(i, j);
             double phi_ij = phi(k);                                    
+
+            epsID_to_coord.clear();
+            Coord coord_ipj(i-1 + 0.5, j-1);
+            Coord coord_imj(i-1 - 0.5, j-1);
+            Coord coord_ijp(i-1, j-1 + 0.5);
+            Coord coord_ijm(i-1, j-1 - 0.5);
+            epsID_to_coord["eps_ipj"] = &coord_ipj;
+            epsID_to_coord["eps_imj"] = &coord_imj;
+            epsID_to_coord["eps_ijp"] = &coord_ijp;
+            epsID_to_coord["eps_ijm"] = &coord_ijm;
+
+            epsID_to_eps["eps_ipj"] = std::pair<double, uint>(0, 0);
+            epsID_to_eps["eps_imj"] = std::pair<double, uint>(0, 0);
+            epsID_to_eps["eps_ijp"] = std::pair<double, uint>(0, 0);
+            epsID_to_eps["eps_ijm"] = std::pair<double, uint>(0, 0);
 
             current_regions.clear();
             for (int p=0; p<num_regions; p++)
             {
                 Region region = regions[p];
-                if (belongs_to((double)(i-1), (double)(j-1), region))
+                if (belongs_to(coord.x, coord.y, region))
+                {
                     current_regions.push_back(region);
+                    map<string, Coord *>::iterator it;           
+                    for (it = epsID_to_coord.begin(); it != epsID_to_coord.end(); ++it)
+                    {
+                        Coord *fluxCoord = it->second;
+                        if (belongs_to(fluxCoord->x, fluxCoord->y, region))   
+                        {                     
+                            std::pair<double, uint> eps_info = epsID_to_eps[it->first];
+                            double eps_sum = eps_info.first;
+                            uint num_overlaps = eps_info.second;
+                            epsID_to_eps[it->first] = std::pair<double, uint>(eps_sum + region.eps, num_overlaps+1);
+                        }
+                    }
+                }
             }
+            eps_ipj = epsID_to_eps["eps_ipj"].first / epsID_to_eps["eps_ipj"].second;            
+            eps_imj = epsID_to_eps["eps_imj"].first / epsID_to_eps["eps_imj"].second;
+            if (epsID_to_eps["eps_ijp"].second > 0)
+                eps_ijp = epsID_to_eps["eps_ijp"].first / epsID_to_eps["eps_ijp"].second;
+            if (epsID_to_eps["eps_ijm"].second > 0)
+                eps_ijm = epsID_to_eps["eps_ijm"].first / epsID_to_eps["eps_ijm"].second;               
+
             Region doping_region = current_regions.back();
-            ion_term = doping_region.doping;            
+            ion_term = doping_region.doping;                          
 
             double phi_ipj = phi_at(i+1, j, phi, phi_ij);                           
             double phi_imj = phi_at(i-1, j, phi, phi_ij);                           
