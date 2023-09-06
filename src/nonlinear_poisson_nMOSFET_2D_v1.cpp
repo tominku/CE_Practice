@@ -175,10 +175,10 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi, double boundary_potential)
             epsID_to_coord["eps_ijp"] = &coord_ijp;
             epsID_to_coord["eps_ijm"] = &coord_ijm;
 
-            // epsID_to_eps["eps_ipj"] = std::pair<double, uint>(0, 0);
-            // epsID_to_eps["eps_imj"] = std::pair<double, uint>(0, 0);
-            // epsID_to_eps["eps_ijp"] = std::pair<double, uint>(0, 0);
-            // epsID_to_eps["eps_ijm"] = std::pair<double, uint>(0, 0);
+            epsID_to_eps["eps_ipj"] = std::pair<double, uint>(0, 0);
+            epsID_to_eps["eps_imj"] = std::pair<double, uint>(0, 0);
+            epsID_to_eps["eps_ijp"] = std::pair<double, uint>(0, 0);
+            epsID_to_eps["eps_ijm"] = std::pair<double, uint>(0, 0);
 
             current_regions.clear();
             for (int p=0; p<num_regions; p++)
@@ -201,12 +201,14 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi, double boundary_potential)
                     }
                 }
             }
-            // eps_ipj = epsID_to_eps["eps_ipj"].first / epsID_to_eps["eps_ipj"].second;            
-            // eps_imj = epsID_to_eps["eps_imj"].first / epsID_to_eps["eps_imj"].second;
-            // if (epsID_to_eps["eps_ijp"].second > 0)
-            //     eps_ijp = epsID_to_eps["eps_ijp"].first / epsID_to_eps["eps_ijp"].second;
-            // if (epsID_to_eps["eps_ijm"].second > 0)
-            //     eps_ijm = epsID_to_eps["eps_ijm"].first / epsID_to_eps["eps_ijm"].second;               
+            if (epsID_to_eps["eps_ipj"].second > 0)
+                eps_ipj = epsID_to_eps["eps_ipj"].first / epsID_to_eps["eps_ipj"].second;            
+            if (epsID_to_eps["eps_imj"].second > 0)
+                eps_imj = epsID_to_eps["eps_imj"].first / epsID_to_eps["eps_imj"].second;
+            if (epsID_to_eps["eps_ijp"].second > 0)
+                eps_ijp = epsID_to_eps["eps_ijp"].first / epsID_to_eps["eps_ijp"].second;
+            if (epsID_to_eps["eps_ijm"].second > 0)
+                eps_ijm = epsID_to_eps["eps_ijm"].first / epsID_to_eps["eps_ijm"].second;               
 
             Region doping_region = current_regions.back();
             ion_term = doping_region.doping;                          
