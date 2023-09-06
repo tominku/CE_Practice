@@ -12,7 +12,7 @@
 using namespace arma; 
 
 const int Nx = 101;
-const int Ny = 21;
+const int Ny = 251;
 const int N = Nx * Ny;
 //double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
 double T = 300;    
@@ -22,7 +22,7 @@ double thermal = k_B * T / q;
 // double bulk_height = 5e-7;
 //double bulk_width =  5e-7;
 double bulk_width =  8e-7;
-double bulk_height = 1e-7;
+double bulk_height = 20e-7;
 double nwell_width = 1e-7;
 double nwell_height = 1e-7;
 double deltaX = bulk_width / (Nx-1); // in meter  
@@ -57,10 +57,10 @@ const int max_x_index = (total_width/deltaX) + 1;
 const int min_y_index = 1;
 const int max_y_index = (total_height/deltaX) + 1;
 
-Region bulk_region = {"bulk_region", -1e21, eps_si, 0, round(bulk_width/deltaX), 0, round(bulk_height/deltaY)};
+Region bulk_region = {"bulk_region", -5e21, eps_si, 0, round(bulk_width/deltaX), 0, round(bulk_height/deltaY)};
 Region nwell_left_region = {"nwell_left_region", 5e23, eps_si, 
     0, round(nwell_width/deltaX), round((bulk_height-nwell_height)/deltaY), round(bulk_height/deltaY)};
-Region nwell_right_region = {"nwell_right_region", -5e23, eps_si,
+Region nwell_right_region = {"nwell_right_region", 5e23, eps_si,
     Nx-1-round(nwell_width/deltaX), Nx-1, round((bulk_height-nwell_height)/deltaY), round(bulk_height/deltaY)};
 Region regions[] = {bulk_region, nwell_left_region, nwell_right_region};
 int num_regions = 3;
@@ -419,6 +419,9 @@ void fill_initial(vec &phi, string method)
 int main() {    
 
     double start_potential = 0;    
+
+    double phi_test =compute_eq_phi(-5e21);
+    printf("hole density: %f \n", phi_test);
 
     vec one_vector(N+1, arma::fill::ones);
     vec phi_0(N+1, arma::fill::zeros);

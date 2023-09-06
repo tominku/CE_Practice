@@ -59,16 +59,31 @@ struct Region
     int y_begin; int y_end;
 };
 
-Region bulk = {"p_region", -2e23, eps_si, 0, Nx-1, 0, round(total_height/deltaY)};
-Region n_region = {"n_region", 5e23, eps_si, 0, round(left_part_width/deltaX), 0, round(total_height/deltaY)};
-Region n_region2 = {"n_region2", 5e23, eps_si, Nx-1-round(right_part_width/deltaX), Nx-1, 0, round(total_height/deltaY)};
-Region regions[] = {bulk, n_region, n_region2};
-int num_regions = 3;
+// Region bulk = {"p_region", -2e23, eps_si, 0, Nx-1, 0, round(total_height/deltaY)};
+// Region n_region = {"n_region", 5e23, eps_si, 0, round(left_part_width/deltaX), 0, round(total_height/deltaY)};
+// Region n_region2 = {"n_region2", 5e23, eps_si, Nx-1-round(right_part_width/deltaX), Nx-1, 0, round(total_height/deltaY)};
+// Region regions[] = {bulk, n_region, n_region2};
+// int num_regions = 3;
 
 const int min_x_index = 1;
 const int max_x_index = (total_width/deltaX) + 1;
 const int min_y_index = 1;
 const int max_y_index = (total_height/deltaX) + 1;
+
+Region bulk_region = {"bulk_region", -1e21, eps_si, 0, round(bulk_width/deltaX), 0, round(bulk_height/deltaY)};
+Region nwell_left_region = {"nwell_left_region", 5e23, eps_si, 
+    0, round(nwell_width/deltaX), round((bulk_height-nwell_height)/deltaY), round(bulk_height/deltaY)};
+Region nwell_right_region = {"nwell_right_region", -5e23, eps_si,
+    Nx-1-round(nwell_width/deltaX), Nx-1, round((bulk_height-nwell_height)/deltaY), round(bulk_height/deltaY)};
+Region regions[] = {bulk_region, nwell_left_region, nwell_right_region};
+int num_regions = 3;
+
+Region contact1 = {"contact1", 0, 0, 
+    0, 0, 
+    round((bulk_height-(nwell_height/2))/deltaY), round(bulk_height/deltaY)};
+Region contact2 = {"contact2", 0, 0,
+    round(bulk_width/deltaX), round(bulk_width/deltaX), 
+    round((bulk_height-(nwell_height/2))/deltaY), round(bulk_height/deltaY)};
 
 //Region contact1 = {"contact1", 0, 0, 0, 0, 0, -round(total_height/deltaY)};
 //Region contact2 = {"contact1", 0, 0, round((total_width-nwell_width)/deltaX), round(total_width/deltaX), 0, -round(total_height/deltaY)};
