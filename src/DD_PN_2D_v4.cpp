@@ -71,9 +71,9 @@ Region nwell_left_region = {"nwell_left_region", 5e23, eps_si,
     0, round(nwell_width/deltaX), 0, round(bulk_height/deltaY)};
 Region pwell_right_region = {"pwell_right_region", -2e23, eps_si,
     Nx-1-round(nwell_width/deltaX), Nx-1, 0, round(bulk_height/deltaY)};
-//Region regions[] = {bulk_region, nwell_left_region, pwell_right_region};
-Region regions[] = {nwell_left_region, pwell_right_region};
-int num_regions = 2;
+Region regions[] = {bulk_region, nwell_left_region, pwell_right_region};
+//Region regions[] = {nwell_left_region, pwell_right_region};
+int num_regions = 3;
 
 Region contact_n = {"contact_n", 0, 0, 
     0, 0, 
@@ -184,10 +184,10 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, std::map<std::string, dou
     } 
 
     double ion_term = 0.0;
-    double eps_ipj = eps_si;
-    double eps_imj = eps_si;
-    double eps_ijp = eps_si;
-    double eps_ijm = eps_si;   
+    double eps_ipj = 0;
+    double eps_imj = 0;
+    double eps_ijp = 0;
+    double eps_ijm = 0;   
     std::vector<Region> current_regions;           
     std::map<string, Coord *> epsID_to_coord;     
     std::map<string, std::pair<double, uint>> epsID_to_eps;   
@@ -242,14 +242,14 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, std::map<std::string, dou
                     }
                 }
             }
-            // if (epsID_to_eps["eps_ipj"].second > 0)
-            //     eps_ipj = epsID_to_eps["eps_ipj"].first / epsID_to_eps["eps_ipj"].second;            
-            // if (epsID_to_eps["eps_imj"].second > 0)
-            //     eps_imj = epsID_to_eps["eps_imj"].first / epsID_to_eps["eps_imj"].second;
-            // if (epsID_to_eps["eps_ijp"].second > 0)
-            //     eps_ijp = epsID_to_eps["eps_ijp"].first / epsID_to_eps["eps_ijp"].second;
-            // if (epsID_to_eps["eps_ijm"].second > 0)
-            //     eps_ijm = epsID_to_eps["eps_ijm"].first / epsID_to_eps["eps_ijm"].second;               
+            if (epsID_to_eps["eps_ipj"].second > 0)
+                eps_ipj = epsID_to_eps["eps_ipj"].first / epsID_to_eps["eps_ipj"].second;            
+            if (epsID_to_eps["eps_imj"].second > 0)
+                eps_imj = epsID_to_eps["eps_imj"].first / epsID_to_eps["eps_imj"].second;
+            if (epsID_to_eps["eps_ijp"].second > 0)
+                eps_ijp = epsID_to_eps["eps_ijp"].first / epsID_to_eps["eps_ijp"].second;
+            if (epsID_to_eps["eps_ijm"].second > 0)
+                eps_ijm = epsID_to_eps["eps_ijm"].first / epsID_to_eps["eps_ijm"].second;               
 
             Region doping_region = current_regions.back();
             ion_term = doping_region.doping;                          
@@ -286,13 +286,21 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, std::map<std::string, dou
             double V = deltaX*deltaY;
 
             if (j == min_y_index)            
+            {
                 s_ijm = 0; s_ipj *= 0.5; s_imj *= 0.5; V *= 0.5;                        
+            }
             if (j == max_y_index)                              
+            {
                 s_ijp = 0; s_ipj *= 0.5; s_imj *= 0.5; V *= 0.5;                        
-            if (i == min_x_index)            
-                s_imj = 0; s_ijp *= 0.5; s_ijm *= 0.5; V *= 0.5;                                        
-            if (i == max_x_index)            
-                s_ipj = 0; s_ijp *= 0.5; s_ijm *= 0.5; V *= 0.5; 
+            }
+            if (i == min_x_index)     
+            {                                   
+                s_imj = 0; s_ijp *= 0.5; s_ijm *= 0.5; V *= 0.5;                                                                
+            }
+            if (i == max_x_index)             
+            {
+                s_ipj = 0; s_ijp *= 0.5; s_ijm *= 0.5; V *= 0.5;                             
+            }
             
             double D_ipj = -eps_ipj * phi_diff_ipi / deltaX;
             double D_imj = -eps_imj * phi_diff_iim / deltaX;                                        
@@ -642,7 +650,7 @@ int main() {
 
     //for (int i=0; i<9; i++)    
     {           
-        double bias = 0.1*3;        
+        double bias = 0.1*7;        
         contactID_to_bias["contact_p"] = bias;
         vec result = solve_phi(contactID_to_bias, phi_n_p_0, C); 
         phi_n_p_0 = result;           
