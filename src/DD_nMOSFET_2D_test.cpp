@@ -13,7 +13,7 @@ using namespace arma;
 
 const int Nx = 101;
 //const int Ny = 251;
-const int Ny = 201;
+const int Ny = 51;
 const int N = Nx * Ny;
 //double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
 double T = 300;    
@@ -22,26 +22,32 @@ double thermal = k_B * T / q;
 // double bulk_width =  5e-7;
 // double bulk_height = 5e-7;
 //double bulk_width =  5e-7;
-double bulk_width =  8e-7;
+double bulk_width =  4e-7;
 // double bulk_height = 1990e-9;
 // double ox_height = 10e-9;
-double bulk_height = 15e-7;
 double ox_height = 1e-7;
-double nwell_width = 1e-7;
-double nwell_height = 1e-7;
+double nwell_width = 2e-7;
+double nwell_height = 2e-7;
+//double bulk_height = 8e-7;
+double bulk_height = nwell_height;
 double total_width = bulk_width;
-double total_height = bulk_height + ox_height;
+//double total_height = bulk_height + ox_height;
+double total_height = bulk_height;
 double deltaX = total_width / (Nx-1); // in meter  
 double deltaY = (total_height) / (Ny-1); // in meter  
 double ox_boundary_potential = 0.333703995136;
 //double ox_boundary_potential = 0;
+int interface_i = nwell_width / deltaX;
 
 #define ijTok(i, j) (Nx*(j-1) + i)
-#define phi_at(i, j, phi_name, phi_center_name) ((j >= 1 && j <= Ny && i >= 1 && i <= Nx) ? phi_name(ijTok(i, j)) : 0)
 #define index_exist(i, j) ((j >= 1 && j <= Ny && i >= 1 && i <= Nx) ? true : false)
 #define phi_at(i, j, var_name) (index_exist(i, j) ? var_name(ijTok(i, j)) : 0)
 #define n_at(i, j, var_name) (index_exist(i, j) ? var_name(N + ijTok(i, j)) : 0)
 #define p_at(i, j, var_name) (index_exist(i, j) ? var_name(2*N + ijTok(i, j)) : 0)
+
+vec one_vector(3*N, fill::ones);
+double B(double x);
+double dB(double x);
 
 struct Coord
 {    
@@ -65,30 +71,45 @@ const int max_x_index = (total_width/deltaX) + 1;
 const int min_y_index = 1;
 const int max_y_index = (total_height/deltaX) + 1;
 
+double dop_left = 5e23;
+double dop_right = -5e23;
+
 Region bulk_region = {"bulk_region", -5e21, eps_si, 0, round(bulk_width/deltaX), 0, round(bulk_height/deltaY)};
 Region ox_region = {"ox_region", 0, eps_ox, 0, round(bulk_width/deltaX), round(bulk_height/deltaY), round(total_height/deltaY)};
 Region nwell_left_region = {"nwell_left_region", 5e23, eps_si, 
     0, round(nwell_width/deltaX), round((bulk_height-nwell_height)/deltaY), round(bulk_height/deltaY)};
-Region nwell_right_region = {"nwell_right_region", 5e23, eps_si,
+Region nwell_right_region = {"nwell_right_region", -5e23, eps_si,
     Nx-1-round(nwell_width/deltaX), Nx-1, round((bulk_height-nwell_height)/deltaY), round(bulk_height/deltaY)};
-Region regions[] = {bulk_region, ox_region, nwell_left_region, nwell_right_region};
-int num_regions = 4;
+//Region regions[] = {bulk_region, ox_region, nwell_left_region, nwell_right_region};
+//Region regions[] = {bulk_region, nwell_left_region, nwell_right_region};
+Region regions[] = {nwell_left_region, nwell_right_region};
+int num_regions = 2;
+
+// Region contact1 = {"contact1", 0, 0, 
+//     0, 0, 
+//     round((bulk_height-(nwell_height/2))/deltaY), round(bulk_height/deltaY)};
+// Region contact2 = {"contact2", 0, 0,
+//     round(bulk_width/deltaX), round(bulk_width/deltaX), 
+//     round((bulk_height-(nwell_height/2))/deltaY), round(bulk_height/deltaY)};
 
 Region contact1 = {"contact1", 0, 0, 
     0, 0, 
-    round((bulk_height-(nwell_height/2))/deltaY), round(bulk_height/deltaY)};
+    0, round(bulk_height/deltaY)};
 Region contact2 = {"contact2", 0, 0,
     round(bulk_width/deltaX), round(bulk_width/deltaX), 
-    round((bulk_height-(nwell_height/2))/deltaY), round(bulk_height/deltaY)};
-Region contact_ox = {"contact_ox", 0, 0, 
-    round(nwell_width/deltaX), Nx-1-round(nwell_width/deltaX), 
-    round(total_height/deltaY), round(total_height/deltaY)};    
-Region contact_substrate_gnd = {"contact_substrate_gnd", 0, 0, 
-    0, Nx-1, 
-    0, 0};        
+    0, round(bulk_height/deltaY)};
 
-Region contacts[] = {contact1, contact2, contact_ox, contact_substrate_gnd};
-int num_contacts = 4;
+// Region contact_ox = {"contact_ox", 0, 0, 
+//     round(nwell_width/deltaX), Nx-1-round(nwell_width/deltaX), 
+//     round(total_height/deltaY), round(total_height/deltaY)};    
+// Region contact_substrate_gnd = {"contact_substrate_gnd", 0, 0, 
+//     0, Nx-1, 
+//     0, 0};        
+
+//Region contacts[] = {contact1, contact2, contact_ox, contact_substrate_gnd};
+Region contacts[] = {contact1, contact2};
+//int num_contacts = 4;
+int num_contacts = 2;
 
 bool belongs_to(double i, double j, Region &region)
 {    
@@ -99,7 +120,7 @@ bool belongs_to(double i, double j, Region &region)
         return false;
 }
 
-const string subject_name = "MOSFET_2D_NP";
+const string subject_name = "nMOSFET_2D_DD";
 
 #define INCLUDE_VFLUX true
 
@@ -116,6 +137,7 @@ double compute_eq_phi(double doping_density)
     return phi;        
 }
 
+
 bool is_contact_node(Coord coord)
 {
     for (int c=0; c<num_contacts; c++)
@@ -131,59 +153,84 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double gate_bias)
 {
     r.fill(0.0);        
     jac.zeros();             
-    
-    // Handle contacts
-    for (int c=0; c<num_contacts; c++)
+
+    // set boundary condition
+    int i = 0;
+    for (int j=1; j<=Ny; ++j)
     {
-        Region contact = contacts[c];
-        for (int j=contact.y_begin; j<=contact.y_end; j++)
-        {
-            for (int i=contact.x_begin; i<=contact.x_end; i++)
-            {
-                for (int p=0; p<num_regions; p++)
-                {
-                    Region region = regions[p];
-                    if (belongs_to(i, j, region))
-                    {
-                        int k = ijTok(i+1, j+1);
-                        double doping = region.doping;
-                        if (doping != 0)
-                        {                                                                               
-                            r(k) = phi_at(i, j, phi_n_p) - compute_eq_phi(doping);        
-                            if (doping > 0)
-                            {
-                                r(N + k) = n_at(i, j, phi_n_p) - doping;        
-                                r(2*N + k) = p_at(i, j, phi_n_p) - (n_int*n_int/doping);
-                            }
-                            else
-                            {
-                                r(N + k) = n_at(i, j, phi_n_p) - fabs(n_int*n_int/doping);        
-                                r(2*N + k) = p_at(i, j, phi_n_p) - fabs(doping);
-                            }
-                            jac(k, k) = 1.0;  
-                            jac(N + k, N + k) = 1.0; 
-                            jac(2*N + k, 2*N + k) = 1.0;                                      
-                        }
-                        else // metal-oxide contact                 
-                        {
-                            r(k) = phi_at(i, j, phi_n_p) - ox_boundary_potential - gate_bias; 
-                            r(N + k) = n_at(i, j, phi_n_p) - 0;        
-                            r(2*N + k) = p_at(i, j, phi_n_p) - 0;
-                            jac(k, k) = 1.0;  
-                            jac(N + k, N + k) = 1.0; 
-                            jac(2*N + k, 2*N + k) = 1.0;                                      
-                        }
-                    }                    
-                }
-            }
-        }
-    } 
+        // left boundary
+        i = 1;      
+        int k = ijTok(i, j);
+        r(k) = phi_at(i, j, phi_n_p) - compute_eq_phi(dop_left);        
+        r(N + k) = n_at(i, j, phi_n_p) - abs(dop_left);        
+        r(2*N + k) = p_at(i, j, phi_n_p) - abs(n_int*n_int/dop_left);        
+        jac(k, k) = 1.0; 
+        jac(N + k, N + k) = 1.0; 
+        jac(2*N + k, 2*N + k) = 1.0; 
+
+        // right boundary      
+        i = Nx;            
+        k = ijTok(i, j);
+        r(k) = phi_at(i, j, phi_n_p) - compute_eq_phi(dop_right) - gate_bias;
+        r(N + k) = n_at(i, j, phi_n_p) - abs(n_int*n_int/dop_right);
+        r(2*N + k) = p_at(i, j, phi_n_p) - abs(dop_right);        
+        jac(k, k) = 1.0; 
+        jac(N + k, N + k) = 1.0; 
+        jac(2*N + k, 2*N + k) = 1.0;                             
+    }
+
+    // Handle contacts
+    // for (int c=0; c<num_contacts; c++)
+    // {
+    //     Region contact = contacts[c];
+    //     for (int j=contact.y_begin; j<=contact.y_end; j++)
+    //     {
+    //         for (int i=contact.x_begin; i<=contact.x_end; i++)
+    //         {
+    //             for (int p=0; p<num_regions; p++)
+    //             {
+    //                 Region region = regions[p];
+    //                 if (belongs_to(i, j, region))
+    //                 {
+    //                     int k = ijTok(i+1, j+1);
+    //                     double doping = region.doping;
+    //                     if (doping != 0)
+    //                     {                                                                               
+    //                         r(k) = phi_at(i, j, phi_n_p) - compute_eq_phi(doping);        
+    //                         if (doping > 0)
+    //                         {
+    //                             r(N + k) = n_at(i, j, phi_n_p) - doping;        
+    //                             r(2*N + k) = p_at(i, j, phi_n_p) - (n_int*n_int/doping);
+    //                         }
+    //                         else
+    //                         {
+    //                             r(N + k) = n_at(i, j, phi_n_p) - fabs(n_int*n_int/doping);        
+    //                             r(2*N + k) = p_at(i, j, phi_n_p) - fabs(doping);
+    //                         }
+    //                         jac(k, k) = 1.0;  
+    //                         jac(N + k, N + k) = 1.0; 
+    //                         jac(2*N + k, 2*N + k) = 1.0;                                      
+    //                     }
+    //                     // else // metal-oxide contact                 
+    //                     // {
+    //                     //     r(k) = phi_at(i, j, phi_n_p) - ox_boundary_potential - gate_bias; 
+    //                     //     r(N + k) = n_at(i, j, phi_n_p) - 0;        
+    //                     //     r(2*N + k) = p_at(i, j, phi_n_p) - 0;
+    //                     //     jac(k, k) = 1.0;  
+    //                     //     jac(N + k, N + k) = 1.0; 
+    //                     //     jac(2*N + k, 2*N + k) = 1.0;                                      
+    //                     // }
+    //                 }                    
+    //             }
+    //         }
+    //     }
+    // } 
 
     double ion_term = 0.0;
-    double eps_ipj = eps_si;
-    double eps_imj = eps_si;
-    double eps_ijp = eps_si;
-    double eps_ijm = eps_si;   
+    double eps_ipj = 0;
+    double eps_imj = 0;
+    double eps_ijp = 0;
+    double eps_ijm = 0;   
     std::vector<Region> current_regions;           
     std::map<string, Coord *> epsID_to_coord;     
     std::map<string, std::pair<double, uint>> epsID_to_eps;   
@@ -250,6 +297,13 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double gate_bias)
             Region doping_region = current_regions.back();
             ion_term = doping_region.doping;                          
 
+            // if (i < interface_i)                                                    
+            //     ion_term = dop_left;                                                       
+            // else if (i == interface_i)            
+            //     ion_term = dop_right;                                              
+            // else if (i > interface_i)            
+            //     ion_term = dop_right; 
+
             double phi_ipj = phi_at(i+1, j, phi_n_p);                           
             double phi_imj = phi_at(i-1, j, phi_n_p);                           
             double phi_ijp = phi_at(i, j+1, phi_n_p);                           
@@ -289,7 +343,8 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double gate_bias)
                 s_imj = 0; s_ijp *= 0.5; s_ijm *= 0.5; V *= 0.5;                                        
             if (i == max_x_index)            
                 s_ipj = 0; s_ijp *= 0.5; s_ijm *= 0.5; V *= 0.5; 
-            
+
+
             double D_ipj = -eps_ipj * phi_diff_ipi / deltaX;
             double D_imj = -eps_imj * phi_diff_iim / deltaX;                                        
 
@@ -303,11 +358,11 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double gate_bias)
             else
                 r(k) = s_ipj*D_ipj + s_imj*D_imj;
 
-            //r(k) -= V*q*(ion_term - n_int*( exp(phi_ij/thermal) - exp(-phi_ij/thermal) ));            
-            r(k) -= V*q*(ion_term - n_ij + p_ij);   
+            r(k) -= V*q*(ion_term - n_ij + p_ij);             
             r(k) /= eps_0;
-                        
-            // Jacobian for the nonlinear Poisson Equation
+            
+            //r(k) *= deltaX;
+            // Jacobian for the Poisson Equation
             if (INCLUDE_VFLUX)
             {
                 jac(k, k) = s_ipj*eps_ipj/deltaX - s_imj*eps_imj/deltaX +
@@ -316,20 +371,12 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double gate_bias)
             else
                 jac(k, k) = s_ipj*eps_ipj/deltaX - s_imj*eps_imj/deltaX;                
             
-            jac(k, k) += V*q*n_int*(1.0/thermal)*( exp(phi_ij/thermal) + exp(-phi_ij/thermal) );
-
             jac(k, k) /= eps_0;
             
-            if (index_exist(i+1, j))
-            {
-                jac(k, ijTok(i+1, j)) = - s_ipj*eps_ipj / deltaX; 
-                jac(k, ijTok(i+1, j)) /= eps_0;                       
-            }
-            if (index_exist(i-1, j))
-            {
-                jac(k, ijTok(i-1, j)) = s_imj*eps_imj / deltaX;               
-                jac(k, ijTok(i-1, j)) /= eps_0;
-            }
+            jac(k, ijTok(i+1, j)) = - s_ipj*eps_ipj / deltaX;                        
+            jac(k, ijTok(i-1, j)) = s_imj*eps_imj / deltaX;   
+            jac(k, ijTok(i+1, j)) /= eps_0;
+            jac(k, ijTok(i-1, j)) /= eps_0;
             
             if (INCLUDE_VFLUX)
             {
@@ -343,12 +390,12 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double gate_bias)
                     jac(k, ijTok(i, j-1)) = s_ijm*eps_ijm / deltaY;                                                                      
                     jac(k, ijTok(i, j-1)) /= eps_0;
                 }
-            }   
-
+            }
             jac(k, N + ijTok(i, j)) =  q*V; // r w.r.t. n                        
             jac(k, 2*N + ijTok(i, j)) = - q*V; // r w.r.t. p    
             jac(k, N + ijTok(i, j)) /=  eps_0;
-            jac(k, 2*N + ijTok(i, j)) /=  eps_0;              
+            jac(k, 2*N + ijTok(i, j)) /=  eps_0;
+
 
             // Residual for the SG (n)     
             double Jn_ipj = n_ipj*B(phi_diff_ipi/thermal) - n_ij*B(-phi_diff_ipi/thermal);
@@ -436,49 +483,61 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double gate_bias)
     }
 }
 
-vec solve_phi(double boundary_potential, vec &phi_0)
+vec solve_phi(double bias, vec &phi_n_p_0, sp_mat &C)
 {                
-    int num_iters = 15;    
-    printf("boundary voltage: %f \n", boundary_potential);
+    int num_iters = 20;    
+    printf("boundary voltage: %f \n", bias);
     auto start = high_resolution_clock::now();
     vec log_residuals(num_iters, arma::fill::zeros);
     vec log_deltas(num_iters, arma::fill::zeros);
         
-    vec r(N + 1, arma::fill::zeros);
-    sp_mat jac(N + 1, N + 1);
+    vec r(3*N + 1, arma::fill::zeros);
+    sp_mat jac(3*N + 1, 3*N + 1);
     jac = jac.zeros();    
     
-    vec phi_k(N + 1, arma::fill::zeros);     
-    phi_k = phi_0;
+    vec phi_n_p_k(3*N + 1, arma::fill::zeros);     
+    phi_n_p_k = phi_n_p_0;
 
     for (int k=0; k<num_iters; k++)
     {        
-        r_and_jacobian(r, jac, phi_k, boundary_potential);   
-        //jac.print("jac:");
-        //printf("test");
-        // xs.row(i) = x_i.t();         
-        // residuals.row(i) = residual.t();     
-        //residual.print("residual: "); 
-        sp_mat jac_part = jac(span(1, N), span(1, N));  
+        r_and_jacobian(r, jac, phi_n_p_k, bias);   
+                                      
+        sp_mat jac_scaled = jac(span(1, 3*N), span(1, 3*N)) * C;        
 
-        superlu_opts opts;
-        opts.allow_ugly  = true;
-        opts.equilibrate = true;
+        sp_mat r_vector_temp = arma::sum(abs(jac_scaled), 1);
+        vec r_vector(3*N, fill::zeros);
+        for (int p=0; p<3*N; p++)        
+            r_vector(p) = 1 / (r_vector_temp(p) + 1e-10);                        
+        
+        sp_mat R(3*N, 3*N);            
+        R.zeros();
+        for (int m=0; m<3*N; m++)
+            R(m, m) = r_vector(m);
+
+        //mat R_eye = eye(2*N, 2*N);
+        //R = R_eye;
+        jac_scaled = R * jac_scaled;
+        vec r_scaled = R * r(span(1, 3*N));
+
+        vec delta_phi_n_p = arma::spsolve(jac_scaled, -r_scaled);        
+        //vec delta_phi = arma::solve(jac(span(1, 2*N), span(1, 2*N)), -r(span(1, 2*N)));        
+        vec update_vector = C * delta_phi_n_p;
+        phi_n_p_k(span(1, 3*N)) += update_vector;                        
+
+        // superlu_opts opts;
+        // opts.allow_ugly  = true;
+        // opts.equilibrate = true;
         //opts.refine = superlu_opts::REF_DOUBLE;
-
-        vec delta_phi_k = arma::spsolve(jac_part, -r(span(1, N)));
-        //phi_i(span(1, N - 1 - 1)) += delta_phi_i;                
-        phi_k(span(1, N)) += delta_phi_k;                
         
         //phi_i.print("phi_i");
         //jac.print("jac");
         //if (i % 1 == 0)
         //printf("[iter %d]   detal_x: %f   residual: %f\n", i, max(abs(delta_phi_i)), max(abs(residual)));  
-        double log_residual = log10(max(abs(r)));        
-        double log_delta = log10(max(abs(delta_phi_k)));        
+        double log_residual = log10(max(abs(r)));          
+        double log_delta = log10(max(abs(update_vector(span(0, N-1)))));        
         log_residuals[k] = log_residual;
         log_deltas[k] = log_delta;
-        //double cond_jac = arma::cond(jac);
+
         printf("[iter %d]   log detal_x: %f   log residual: %f \n", k, log_delta, log_residual);  
         
         // if (log_delta < - 10)
@@ -486,29 +545,13 @@ vec solve_phi(double boundary_potential, vec &phi_0)
     }
 
     auto stop = high_resolution_clock::now();
-    // Subtract stop and start timepoints and
-    // cast it to required unit. Predefined units
-    // are nanoseconds, microseconds, milliseconds,
-    // seconds, minutes, hours. Use duration_cast()
-    // function.
     auto duration = duration_cast<milliseconds>(stop - start);        
     cout << "duration: " << duration.count() << endl;
 
-    std::string convergence_file_name = fmt::format("{}_conv_{:.2f}.csv", subject_name, boundary_potential);
+    std::string convergence_file_name = fmt::format("{}_conv_{:.2f}.csv", subject_name, bias);
     log_deltas.save(convergence_file_name, csv_ascii);            
         
-    return phi_k;
-    //plot(potentials, args);
-    
-    // if (plot_error)
-    //     plot(log_deltas, args);
-        //plot(log_residuals, args);
-
-    //phi_i.print("found solution (phi):");    
-    // vec n(N, arma::fill::zeros);
-    // n(span(interface_i-1, interface2_i-1)) = n_int * exp(q * phi_i(span(interface_i-1, interface2_i-1)) / (k_B * T));
-    // std::pair<vec, vec> result(phi_i, n);
-    // return result;
+    return phi_n_p_k;
 }
 
 void save_current_densities(vec &phi_n)
@@ -531,82 +574,101 @@ void save_current_densities(vec &phi_n)
 }
 
 
-void fill_initial(vec &phi, string method)
-{        
-    std::vector<Region> current_regions;    
-    for (int j=1; j<=Ny; j++)
-    {
-        for (int i=1; i<=Nx; i++)
-        { 
-            int k = ijTok(i, j);            
-            current_regions.clear();
-            for (int p=0; p<num_regions; p++)
-            {
-                Region region = regions[p];
-                if (belongs_to(i-1, j-1, region))
-                    current_regions.push_back(region);
-            }
-            Region doping_region = current_regions.back();
-            double doping = doping_region.doping;            
-            if (doping != 0)
-            {
-                double eq_phi = compute_eq_phi(doping);
-                phi(k) = eq_phi;
-            }
-            else
-            {                
-                phi(k) = 0;
-            }
-        }
-     }      
-}
-
-
 int main() {    
 
     double start_potential = 0;    
+    
+    string setting = fmt::format("deltaX: {}, deltaY: {}", deltaX, deltaY); 
+    cout << setting << "\n";        
+    double bias = 0.0;    
+    vec phi_n_p_0(3*N+1, arma::fill::zeros);    
+    bool load_initial_solution_from_NP = true;    
+    if (load_initial_solution_from_NP)
+    {
+        string load_subject_name = "nMOSFET_2D_NP";
+        std::string file_name = fmt::format("{}_phi_{:.2f}.csv", load_subject_name, 0.0); 
+        cout << file_name << "\n";        
+        vec phi_from_NP(N, fill::zeros);
+        phi_from_NP.load(file_name);
 
-    double phi_test =compute_eq_phi(-5e21);
-    printf("hole density: %f \n", phi_test);
+        file_name = fmt::format("{}_eDensity_{:.2f}.csv", load_subject_name, 0.0); 
+        cout << file_name << "\n";        
+        vec eDensity_from_NP(N, fill::zeros); 
+        eDensity_from_NP.load(file_name);        
 
-    vec one_vector(N+1, arma::fill::ones);
-    vec phi_0(N+1, arma::fill::zeros);
-    fill_initial(phi_0, "uniform");
-    //fill_initial(phi_0, "random");
-    //fill_initial(phi_0, "linear");
+        file_name = fmt::format("{}_holeDensity_{:.2f}.csv", load_subject_name, 0.0); 
+        cout << file_name << "\n";        
+        vec holeDensity_from_NP(N, fill::zeros);
+        holeDensity_from_NP.load(file_name);           
+                        
+        phi_n_p_0(span(1, N)) = phi_from_NP(span(0, N-1));        
+        phi_n_p_0(span(N+1, 2*N)) = eDensity_from_NP(span(0, N-1));        
+        phi_n_p_0(span(2*N+1, 3*N)) = holeDensity_from_NP(span(0, N-1));        
+    }
+    
+    sp_mat C(3*N, 3*N);        
+    C.zeros();
+    for (int m=0; m<N; m++)
+        C(m, m) = thermal;
+    for (int m=N; m<2*N; m++)
+        C(m, m) = dop_left;
+    for (int m=2*N; m<3*N; m++)
+        C(m, m) = dop_left;
+
     //for (int i=0; i<10; i++)
     {        
-        //int i = 0;
-        int i = 3;
-        vec phi = solve_phi(start_potential + (0.1*i), phi_0); 
-        phi_0 = phi;   
+        int i = 0;
+        vec result = solve_phi(bias + (0.1*i), phi_n_p_0, C); 
+        phi_n_p_0 = result;   
         
-        std::string log = fmt::format("BD {:.2f} V \n", start_potential + (0.1*i));            
+        std::string log = fmt::format("BD {:.2f} V \n", bias + (0.1*i));            
         cout << log;        
+                   
+        vec phi = phi_n_p_0(span(1, N));                
+        vec eDensity = phi_n_p_0(span(N+1, 2*N));        
+        eDensity /= 1e6;
+        vec holeDensity = phi_n_p_0(span(2*N+1, 3*N));        
+        holeDensity /= 1e6;
         
-        vec n(N+1, arma::fill::zeros);
-        n(span(1, N)) = n_int * exp(phi(span(1, N)) / thermal);
-        n /= 1e6;        
-        vec eDensity = n(span(1, N));        
-        std::string n_file_name = fmt::format("{}_eDensity_{:.2f}.csv", subject_name, (0.1*i));
-        eDensity.save(n_file_name, csv_ascii);        
+        std::string phi_file_name = fmt::format("{}_phi_{:.2f}.csv", subject_name, bias+(0.1*i));
+        phi.save(phi_file_name, csv_ascii);                
 
-        vec h(N+1, arma::fill::zeros);
-        h(span(1, N)) = n_int * exp(- phi(span(1, N)) / thermal);
-        h /= 1e6;        
-        vec holeDensity = h(span(1, N));        
+        std::string n_file_name = fmt::format("{}_eDensity_{:.2f}.csv", subject_name, bias+(0.1*i));
+        eDensity.save(n_file_name, csv_ascii);                
 
-        std::string h_file_name = fmt::format("{}_holeDensity_{:.2f}.csv", subject_name, (0.1*i));
-        holeDensity.save(h_file_name, csv_ascii);        
-        
-        vec phi_for_plot = phi(span(1, N));
-        std::string phi_file_name = fmt::format("{}_phi_{:.2f}.csv", subject_name, (0.1*i));
-        phi_for_plot.save(phi_file_name, csv_ascii);                        
-
-        vec phi_n(2*N+1, arma::fill::zeros);
-        phi_n(span(1, N)) = phi(span(1, N));
-        phi_n(span(N+1, 2*N)) = eDensity;        
+        std::string h_file_name = fmt::format("{}_holeDensity_{:.2f}.csv", subject_name, bias+(0.1*i));
+        holeDensity.save(h_file_name, csv_ascii);                                     
 
         //save_current_densities(phi_n);
     }
+}
+
+double B(double x)
+{
+    double result = 0.0;
+    
+    if (abs(x) < 0.0252)   
+        // Bern_P1 = ( 1.0-(x1)/2.0+(x1)^2/12.0*(1.0-(x1)^2/60.0*(1.0-(x1)^2/42.0)) ) ;        
+        result = 1.0 - x/2.0 + pow(x, 2.0)/12.0 * (1.0 - pow(x, 2.0)/60.0 * (1.0 - pow(x, 2.0)/42.0));    
+    else if (abs(x) < 0.15)
+        // Bern_P1 = ( 1.0-(x1)/2.0+(x1)^2/12.0*(1.0-(x1)^2/60.0*(1.0-(x1)^2/42.0*(1-(x1)^2/40*(1-0.02525252525252525252525*(x1)^2)))));
+        result = 1.0 - x/2.0 + pow(x, 2.0)/12.0 * (1.0 - pow(x, 2.0)/60.0 * (1.0 - pow(x, 2.0)/42.0 * (1 - pow(x, 2.0)/40 * (1 - 0.02525252525252525252525*pow(x, 2.0)))));
+    else
+        result = x / (exp(x) - 1);
+    return result;
+}
+
+double dB(double x)
+{
+    double result = 0.0;
+    if (abs(x) < 0.0252)
+        // Deri_Bern_P1_phi1 = (-0.5 + (x1)/6.0*(1.0-(x1)^2/30.0*(1.0-(x1)^2/28.0)) )/thermal;
+        result = -0.5 + x/6.0 * (1.0 - pow(x, 2.0)/30.0 * (1.0 - pow(x, 2.0)/28.0));
+    else if (abs(x) < 0.15)
+        // Deri_Bern_P1_phi1 = (-0.5 + (x1)/6.0*(1.0-(x1)^2/30.0*(1.0-(x1)^2/28.0*(1-(x1)^2/30*(1-0.03156565656565656565657*(x1)^2)))))/thermal;
+        result = -0.5 + x/6.0 * (1.0 - pow(x, 2.0)/30.0 * (1.0 - pow(x, 2.0)/28.0 * (1 - pow(x, 2.0)/30 * (1 - 0.03156565656565656565657*pow(x, 2.0)))));
+    else
+        // Deri_Bern_P1_phi1=(1/(exp(x1)-1)-Bern_P1*(1/(exp(x1)-1)+1))/thermal;
+        result = 1.0/(exp(x)-1) - B(x)*(1.0 / (exp(x) - 1) + 1);
+    return result;
 }

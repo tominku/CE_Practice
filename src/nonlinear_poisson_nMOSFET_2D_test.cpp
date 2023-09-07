@@ -13,7 +13,7 @@ using namespace arma;
 
 const int Nx = 101;
 //const int Ny = 251;
-const int Ny = 201;
+const int Ny = 51;
 const int N = Nx * Ny;
 //double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
 double T = 300;    
@@ -22,15 +22,15 @@ double thermal = k_B * T / q;
 // double bulk_width =  5e-7;
 // double bulk_height = 5e-7;
 //double bulk_width =  5e-7;
-double bulk_width =  8e-7;
+double bulk_width =  4e-7;
 // double bulk_height = 1990e-9;
 // double ox_height = 10e-9;
-double bulk_height = 15e-7;
 double ox_height = 1e-7;
-double nwell_width = 1e-7;
-double nwell_height = 1e-7;
+double nwell_width = 2e-7;
+double nwell_height = 2e-7;
+double bulk_height = nwell_height;
 double total_width = bulk_width;
-double total_height = bulk_height + ox_height;
+double total_height = bulk_height;
 double deltaX = total_width / (Nx-1); // in meter  
 double deltaY = (total_height) / (Ny-1); // in meter  
 double ox_boundary_potential = 0.333703995136;
@@ -66,26 +66,32 @@ Region bulk_region = {"bulk_region", -5e21, eps_si, 0, round(bulk_width/deltaX),
 Region ox_region = {"ox_region", 0, eps_ox, 0, round(bulk_width/deltaX), round(bulk_height/deltaY), round(total_height/deltaY)};
 Region nwell_left_region = {"nwell_left_region", 5e23, eps_si, 
     0, round(nwell_width/deltaX), round((bulk_height-nwell_height)/deltaY), round(bulk_height/deltaY)};
-Region nwell_right_region = {"nwell_right_region", 5e23, eps_si,
+Region nwell_right_region = {"nwell_right_region", -5e23, eps_si,
     Nx-1-round(nwell_width/deltaX), Nx-1, round((bulk_height-nwell_height)/deltaY), round(bulk_height/deltaY)};
-Region regions[] = {bulk_region, ox_region, nwell_left_region, nwell_right_region};
-int num_regions = 4;
+//Region regions[] = {bulk_region, ox_region, nwell_left_region, nwell_right_region};
+//Region regions[] = {bulk_region, nwell_left_region, nwell_right_region};
+//int num_regions = 3;
+Region regions[] = {nwell_left_region, nwell_right_region};
+int num_regions = 2;
 
 Region contact1 = {"contact1", 0, 0, 
     0, 0, 
-    round((bulk_height-(nwell_height/2))/deltaY), round(bulk_height/deltaY)};
+    0, round(bulk_height/deltaY)};
 Region contact2 = {"contact2", 0, 0,
     round(bulk_width/deltaX), round(bulk_width/deltaX), 
-    round((bulk_height-(nwell_height/2))/deltaY), round(bulk_height/deltaY)};
-Region contact_ox = {"contact_ox", 0, 0, 
-    round(nwell_width/deltaX), Nx-1-round(nwell_width/deltaX), 
-    round(total_height/deltaY), round(total_height/deltaY)};    
-Region contact_substrate_gnd = {"contact_substrate_gnd", 0, 0, 
-    0, Nx-1, 
-    0, 0};        
+    0, round(bulk_height/deltaY)};
 
-Region contacts[] = {contact1, contact2, contact_ox, contact_substrate_gnd};
-int num_contacts = 4;
+// Region contact_ox = {"contact_ox", 0, 0, 
+//     round(nwell_width/deltaX), Nx-1-round(nwell_width/deltaX), 
+//     round(total_height/deltaY), round(total_height/deltaY)};    
+// Region contact_substrate_gnd = {"contact_substrate_gnd", 0, 0, 
+//     0, Nx-1, 
+//     0, 0};        
+
+//Region contacts[] = {contact1, contact2, contact_ox, contact_substrate_gnd};
+Region contacts[] = {contact1, contact2};
+//int num_contacts = 4;
+int num_contacts = 2;
 
 bool belongs_to(double i, double j, Region &region)
 {    
