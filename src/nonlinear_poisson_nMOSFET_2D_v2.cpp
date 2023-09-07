@@ -12,7 +12,8 @@
 using namespace arma; 
 
 const int Nx = 101;
-const int Ny = 251;
+//const int Ny = 251;
+const int Ny = 201;
 const int N = Nx * Ny;
 //double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
 double T = 300;    
@@ -22,8 +23,10 @@ double thermal = k_B * T / q;
 // double bulk_height = 5e-7;
 //double bulk_width =  5e-7;
 double bulk_width =  8e-7;
-double bulk_height = 1990e-9;
-double ox_height = 10e-9;
+// double bulk_height = 1990e-9;
+// double ox_height = 10e-9;
+double bulk_height = 15e-7;
+double ox_height = 1e-7;
 double nwell_width = 1e-7;
 double nwell_height = 1e-7;
 double total_width = bulk_width;
@@ -77,9 +80,12 @@ Region contact2 = {"contact2", 0, 0,
 Region contact_ox = {"contact_ox", 0, 0, 
     round(nwell_width/deltaX), Nx-1-round(nwell_width/deltaX), 
     round(total_height/deltaY), round(total_height/deltaY)};    
+Region contact_substrate_gnd = {"contact_substrate_gnd", 0, 0, 
+    0, Nx-1, 
+    0, 0};        
 
-Region contacts[] = {contact1, contact2, contact_ox};
-int num_contacts = 3;
+Region contacts[] = {contact1, contact2, contact_ox, contact_substrate_gnd};
+int num_contacts = 4;
 
 bool belongs_to(double i, double j, Region &region)
 {    
@@ -118,7 +124,7 @@ bool is_contact_node(Coord coord)
     return false;
 }
 
-void r_and_jacobian(vec &r, sp_mat &jac, vec &phi, double bias)
+void r_and_jacobian(vec &r, sp_mat &jac, vec &phi, double gate_bias)
 {
     r.fill(0.0);        
     jac.zeros();             
@@ -144,7 +150,7 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi, double bias)
                         }
                         else                        
                         {
-                            r(k) = phi(k) - ox_boundary_potential; jac(k, k) = 1.0;                        
+                            r(k) = phi(k) - ox_boundary_potential - gate_bias; jac(k, k) = 1.0;                        
                         }
                     }                    
                 }
@@ -309,7 +315,7 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi, double bias)
 
 vec solve_phi(double boundary_potential, vec &phi_0)
 {                
-    int num_iters = 25;    
+    int num_iters = 15;    
     printf("boundary voltage: %f \n", boundary_potential);
     auto start = high_resolution_clock::now();
     vec log_residuals(num_iters, arma::fill::zeros);
@@ -447,7 +453,8 @@ int main() {
     //fill_initial(phi_0, "linear");
     //for (int i=0; i<10; i++)
     {        
-        int i = 0;
+        //int i = 0;
+        int i = 3;
         vec phi = solve_phi(start_potential + (0.1*i), phi_0); 
         phi_0 = phi;   
         
