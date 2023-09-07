@@ -30,6 +30,8 @@ double total_width = bulk_width;
 double total_height = bulk_height + ox_height;
 double deltaX = total_width / (Nx-1); // in meter  
 double deltaY = (total_height) / (Ny-1); // in meter  
+double ox_boundary_potential = 0.333703995136;
+//double ox_boundary_potential = 0;
 
 #define ijTok(i, j) (Nx*(j-1) + i)
 #define phi_at(i, j, phi_name, phi_center_name) ((j >= 1 && j <= Ny && i >= 1 && i <= Nx) ? phi_name(ijTok(i, j)) : 0)
@@ -72,9 +74,12 @@ Region contact1 = {"contact1", 0, 0,
 Region contact2 = {"contact2", 0, 0,
     round(bulk_width/deltaX), round(bulk_width/deltaX), 
     round((bulk_height-(nwell_height/2))/deltaY), round(bulk_height/deltaY)};
+Region contact_ox = {"contact_ox", 0, 0, 
+    round(nwell_width/deltaX), Nx-1-round(nwell_width/deltaX), 
+    round(total_height/deltaY), round(total_height/deltaY)};    
 
-Region contacts[] = {contact1, contact2};
-int num_contacts = 2;
+Region contacts[] = {contact1, contact2, contact_ox};
+int num_contacts = 3;
 
 bool belongs_to(double i, double j, Region &region)
 {    
@@ -113,11 +118,12 @@ bool is_contact_node(Coord coord)
     return false;
 }
 
-void r_and_jacobian(vec &r, sp_mat &jac, vec &phi, double boundary_potential)
+void r_and_jacobian(vec &r, sp_mat &jac, vec &phi, double bias)
 {
     r.fill(0.0);        
     jac.zeros();             
     
+    // Handle contacts
     for (int c=0; c<num_contacts; c++)
     {
         Region contact = contacts[c];
@@ -131,8 +137,15 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi, double boundary_potential)
                     if (belongs_to(i, j, region))
                     {
                         int k = ijTok(i+1, j+1);
-                        r(k) = phi(k) - compute_eq_phi(region.doping);
-                        jac(k, k) = 1.0; 
+                        double doping = region.doping;
+                        if (doping != 0)
+                        {                                           
+                            r(k) = phi(k) - compute_eq_phi(region.doping); jac(k, k) = 1.0;                         
+                        }
+                        else                        
+                        {
+                            r(k) = phi(k) - ox_boundary_potential; jac(k, k) = 1.0;                        
+                        }
                     }                    
                 }
             }
@@ -405,8 +418,16 @@ void fill_initial(vec &phi, string method)
                     current_regions.push_back(region);
             }
             Region doping_region = current_regions.back();
-            double eq_phi = compute_eq_phi(doping_region.doping);
-            phi(k) = eq_phi;
+            double doping = doping_region.doping;            
+            if (doping != 0)
+            {
+                double eq_phi = compute_eq_phi(doping);
+                phi(k) = eq_phi;
+            }
+            else
+            {                
+                phi(k) = 0;
+            }
         }
      }      
 }
