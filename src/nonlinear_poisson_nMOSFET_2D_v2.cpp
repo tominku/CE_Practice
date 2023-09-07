@@ -13,7 +13,7 @@ using namespace arma;
 
 const int Nx = 101;
 //const int Ny = 251;
-const int Ny = 201;
+const int Ny = 101;
 const int N = Nx * Ny;
 //double n_int = 1.075*1e16; // need to check, constant.cc, permitivity, k_T, epsilon, q, compare 
 double T = 300;    
@@ -25,8 +25,8 @@ double thermal = k_B * T / q;
 double bulk_width =  8e-7;
 // double bulk_height = 1990e-9;
 // double ox_height = 10e-9;
-double bulk_height = 15e-7;
-double ox_height = 1e-7;
+double bulk_height = 7.9e-7;
+double ox_height = 0.1e-7;
 double nwell_width = 1e-7;
 double nwell_height = 1e-7;
 double total_width = bulk_width;
@@ -133,16 +133,18 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi, double gate_bias)
     for (int c=0; c<num_contacts; c++)
     {
         Region contact = contacts[c];
-        for (int j=contact.y_begin; j<=contact.y_end; j++)
+        for (int j_=contact.y_begin; j_<=contact.y_end; j_++)
         {
-            for (int i=contact.x_begin; i<=contact.x_end; i++)
-            {
+            for (int i_=contact.x_begin; i_<=contact.x_end; i_++)
+            {   
+                int i = i_ + 1;
+                int j = j_ + 1;
                 for (int p=0; p<num_regions; p++)
                 {
                     Region region = regions[p];
-                    if (belongs_to(i, j, region))
+                    if (belongs_to(i_, j_, region))
                     {
-                        int k = ijTok(i+1, j+1);
+                        int k = ijTok(i, j);
                         double doping = region.doping;
                         if (doping != 0)
                         {                                           
@@ -358,8 +360,8 @@ vec solve_phi(double boundary_potential, vec &phi_0)
         //double cond_jac = arma::cond(jac);
         printf("[iter %d]   log detal_x: %f   log residual: %f \n", k, log_delta, log_residual);  
         
-        // if (log_delta < - 10)
-        //     break;
+        if (log_delta < - 10)
+            break;
     }
 
     auto stop = high_resolution_clock::now();

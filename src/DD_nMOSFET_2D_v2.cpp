@@ -25,18 +25,15 @@ double thermal = k_B * T / q;
 double bulk_width =  8e-7;
 // double bulk_height = 1990e-9;
 // double ox_height = 10e-9;
-double ox_height = 1e-7;
+double bulk_height = 7.9e-7;
+double ox_height = 0.1e-7;
 double nwell_width = 1e-7;
 double nwell_height = 1e-7;
-//double bulk_height = 8e-7;
-double bulk_height = nwell_height;
 double total_width = bulk_width;
-//double total_height = bulk_height + ox_height;
-double total_height = bulk_height;
+double total_height = bulk_height + ox_height;
 double deltaX = total_width / (Nx-1); // in meter  
 double deltaY = (total_height) / (Ny-1); // in meter  
 double ox_boundary_potential = 0.333703995136;
-//double ox_boundary_potential = 0;
 
 #define ijTok(i, j) (Nx*(j-1) + i)
 #define index_exist(i, j) ((j >= 1 && j <= Ny && i >= 1 && i <= Nx) ? true : false)
@@ -76,35 +73,24 @@ Region nwell_left_region = {"nwell_left_region", 5e23, eps_si,
     0, round(nwell_width/deltaX), round((bulk_height-nwell_height)/deltaY), round(bulk_height/deltaY)};
 Region nwell_right_region = {"nwell_right_region", 5e23, eps_si,
     Nx-1-round(nwell_width/deltaX), Nx-1, round((bulk_height-nwell_height)/deltaY), round(bulk_height/deltaY)};
-//Region regions[] = {bulk_region, ox_region, nwell_left_region, nwell_right_region};
-Region regions[] = {bulk_region, nwell_left_region, nwell_right_region};
-int num_regions = 3;
-
-// Region contact1 = {"contact1", 0, 0, 
-//     0, 0, 
-//     round((bulk_height-(nwell_height/2))/deltaY), round(bulk_height/deltaY)};
-// Region contact2 = {"contact2", 0, 0,
-//     round(bulk_width/deltaX), round(bulk_width/deltaX), 
-//     round((bulk_height-(nwell_height/2))/deltaY), round(bulk_height/deltaY)};
+Region regions[] = {bulk_region, ox_region, nwell_left_region, nwell_right_region};
+int num_regions = 4;
 
 Region contact1 = {"contact1", 0, 0, 
     0, 0, 
-    0, round(bulk_height/deltaY)};
+    round((bulk_height-(nwell_height/2))/deltaY), round(bulk_height/deltaY)};
 Region contact2 = {"contact2", 0, 0,
     round(bulk_width/deltaX), round(bulk_width/deltaX), 
-    0, round(bulk_height/deltaY)};
+    round((bulk_height-(nwell_height/2))/deltaY), round(bulk_height/deltaY)};
+Region contact_ox = {"contact_ox", 0, 0, 
+    round(nwell_width/deltaX), Nx-1-round(nwell_width/deltaX), 
+    round(total_height/deltaY), round(total_height/deltaY)};    
+Region contact_substrate_gnd = {"contact_substrate_gnd", 0, 0, 
+    0, Nx-1, 
+    0, 0};        
 
-// Region contact_ox = {"contact_ox", 0, 0, 
-//     round(nwell_width/deltaX), Nx-1-round(nwell_width/deltaX), 
-//     round(total_height/deltaY), round(total_height/deltaY)};    
-// Region contact_substrate_gnd = {"contact_substrate_gnd", 0, 0, 
-//     0, Nx-1, 
-//     0, 0};        
-
-//Region contacts[] = {contact1, contact2, contact_ox, contact_substrate_gnd};
-Region contacts[] = {contact1, contact2};
-//int num_contacts = 4;
-int num_contacts = 2;
+Region contacts[] = {contact1, contact2, contact_ox, contact_substrate_gnd};
+int num_contacts = 4;
 
 bool belongs_to(double i, double j, Region &region)
 {    
@@ -152,16 +138,18 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double gate_bias)
     for (int c=0; c<num_contacts; c++)
     {
         Region contact = contacts[c];
-        for (int j=contact.y_begin; j<=contact.y_end; j++)
+        for (int j_=contact.y_begin; j_<=contact.y_end; j_++)
         {
-            for (int i=contact.x_begin; i<=contact.x_end; i++)
+            for (int i_=contact.x_begin; i_<=contact.x_end; i_++)
             {
+                int i = i_ + 1;
+                int j = j_ + 1;
                 for (int p=0; p<num_regions; p++)
                 {
                     Region region = regions[p];
-                    if (belongs_to(i, j, region))
+                    if (belongs_to(i_, j_, region))
                     {
-                        int k = ijTok(i+1, j+1);
+                        int k = ijTok(i, j);
                         double doping = region.doping;
                         if (doping != 0)
                         {                                                                               
@@ -180,15 +168,15 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double gate_bias)
                             jac(N + k, N + k) = 1.0; 
                             jac(2*N + k, 2*N + k) = 1.0;                                      
                         }
-                        // else // metal-oxide contact                 
-                        // {
-                        //     r(k) = phi_at(i, j, phi_n_p) - ox_boundary_potential - gate_bias; 
-                        //     r(N + k) = n_at(i, j, phi_n_p) - 0;        
-                        //     r(2*N + k) = p_at(i, j, phi_n_p) - 0;
-                        //     jac(k, k) = 1.0;  
-                        //     jac(N + k, N + k) = 1.0; 
-                        //     jac(2*N + k, 2*N + k) = 1.0;                                      
-                        // }
+                        else // metal-oxide contact                 
+                        {
+                            r(k) = phi_at(i, j, phi_n_p) - ox_boundary_potential - gate_bias; 
+                            r(N + k) = n_at(i, j, phi_n_p) - 0;        
+                            r(2*N + k) = p_at(i, j, phi_n_p) - 0;
+                            jac(k, k) = 1.0;  
+                            jac(N + k, N + k) = 1.0; 
+                            jac(2*N + k, 2*N + k) = 1.0;                                      
+                        }
                     }                    
                 }
             }
@@ -196,10 +184,10 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double gate_bias)
     } 
 
     double ion_term = 0.0;
-    double eps_ipj = eps_si;
-    double eps_imj = eps_si;
-    double eps_ijp = eps_si;
-    double eps_ijm = eps_si;   
+    double eps_ipj = 0;
+    double eps_imj = 0;
+    double eps_ijp = 0;
+    double eps_ijm = 0;   
     std::vector<Region> current_regions;           
     std::map<string, Coord *> epsID_to_coord;     
     std::map<string, std::pair<double, uint>> epsID_to_eps;   
@@ -254,14 +242,14 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double gate_bias)
                     }
                 }
             }
-            // if (epsID_to_eps["eps_ipj"].second > 0)
-            //     eps_ipj = epsID_to_eps["eps_ipj"].first / epsID_to_eps["eps_ipj"].second;            
-            // if (epsID_to_eps["eps_imj"].second > 0)
-            //     eps_imj = epsID_to_eps["eps_imj"].first / epsID_to_eps["eps_imj"].second;
-            // if (epsID_to_eps["eps_ijp"].second > 0)
-            //     eps_ijp = epsID_to_eps["eps_ijp"].first / epsID_to_eps["eps_ijp"].second;
-            // if (epsID_to_eps["eps_ijm"].second > 0)
-            //     eps_ijm = epsID_to_eps["eps_ijm"].first / epsID_to_eps["eps_ijm"].second;               
+            if (epsID_to_eps["eps_ipj"].second > 0)
+                eps_ipj = epsID_to_eps["eps_ipj"].first / epsID_to_eps["eps_ipj"].second;            
+            if (epsID_to_eps["eps_imj"].second > 0)
+                eps_imj = epsID_to_eps["eps_imj"].first / epsID_to_eps["eps_imj"].second;
+            if (epsID_to_eps["eps_ijp"].second > 0)
+                eps_ijp = epsID_to_eps["eps_ijp"].first / epsID_to_eps["eps_ijp"].second;
+            if (epsID_to_eps["eps_ijm"].second > 0)
+                eps_ijm = epsID_to_eps["eps_ijm"].first / epsID_to_eps["eps_ijm"].second;               
 
             Region doping_region = current_regions.back();
             ion_term = doping_region.doping;                          
@@ -517,8 +505,8 @@ vec solve_phi(double bias, vec &phi_n_p_0, sp_mat &C)
 
         printf("[iter %d]   log detal_x: %f   log residual: %f \n", k, log_delta, log_residual);  
         
-        // if (log_delta < - 10)
-        //     break;
+        if (log_delta < - 10)
+            break;
     }
 
     auto stop = high_resolution_clock::now();
@@ -594,7 +582,7 @@ int main() {
 
     //for (int i=0; i<10; i++)
     {        
-        int i = 0;
+        int i = 1;
         vec result = solve_phi(bias + (0.1*i), phi_n_p_0, C); 
         phi_n_p_0 = result;   
         

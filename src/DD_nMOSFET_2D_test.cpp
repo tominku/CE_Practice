@@ -155,76 +155,78 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double gate_bias)
     jac.zeros();             
 
     // set boundary condition
-    int i = 0;
-    for (int j=1; j<=Ny; ++j)
-    {
-        // left boundary
-        i = 1;      
-        int k = ijTok(i, j);
-        r(k) = phi_at(i, j, phi_n_p) - compute_eq_phi(dop_left);        
-        r(N + k) = n_at(i, j, phi_n_p) - abs(dop_left);        
-        r(2*N + k) = p_at(i, j, phi_n_p) - abs(n_int*n_int/dop_left);        
-        jac(k, k) = 1.0; 
-        jac(N + k, N + k) = 1.0; 
-        jac(2*N + k, 2*N + k) = 1.0; 
-
-        // right boundary      
-        i = Nx;            
-        k = ijTok(i, j);
-        r(k) = phi_at(i, j, phi_n_p) - compute_eq_phi(dop_right) - gate_bias;
-        r(N + k) = n_at(i, j, phi_n_p) - abs(n_int*n_int/dop_right);
-        r(2*N + k) = p_at(i, j, phi_n_p) - abs(dop_right);        
-        jac(k, k) = 1.0; 
-        jac(N + k, N + k) = 1.0; 
-        jac(2*N + k, 2*N + k) = 1.0;                             
-    }
-
-    // Handle contacts
-    // for (int c=0; c<num_contacts; c++)
+    // int i = 0;
+    // for (int j=1; j<=Ny; ++j)
     // {
-    //     Region contact = contacts[c];
-    //     for (int j=contact.y_begin; j<=contact.y_end; j++)
-    //     {
-    //         for (int i=contact.x_begin; i<=contact.x_end; i++)
-    //         {
-    //             for (int p=0; p<num_regions; p++)
-    //             {
-    //                 Region region = regions[p];
-    //                 if (belongs_to(i, j, region))
-    //                 {
-    //                     int k = ijTok(i+1, j+1);
-    //                     double doping = region.doping;
-    //                     if (doping != 0)
-    //                     {                                                                               
-    //                         r(k) = phi_at(i, j, phi_n_p) - compute_eq_phi(doping);        
-    //                         if (doping > 0)
-    //                         {
-    //                             r(N + k) = n_at(i, j, phi_n_p) - doping;        
-    //                             r(2*N + k) = p_at(i, j, phi_n_p) - (n_int*n_int/doping);
-    //                         }
-    //                         else
-    //                         {
-    //                             r(N + k) = n_at(i, j, phi_n_p) - fabs(n_int*n_int/doping);        
-    //                             r(2*N + k) = p_at(i, j, phi_n_p) - fabs(doping);
-    //                         }
-    //                         jac(k, k) = 1.0;  
-    //                         jac(N + k, N + k) = 1.0; 
-    //                         jac(2*N + k, 2*N + k) = 1.0;                                      
-    //                     }
-    //                     // else // metal-oxide contact                 
-    //                     // {
-    //                     //     r(k) = phi_at(i, j, phi_n_p) - ox_boundary_potential - gate_bias; 
-    //                     //     r(N + k) = n_at(i, j, phi_n_p) - 0;        
-    //                     //     r(2*N + k) = p_at(i, j, phi_n_p) - 0;
-    //                     //     jac(k, k) = 1.0;  
-    //                     //     jac(N + k, N + k) = 1.0; 
-    //                     //     jac(2*N + k, 2*N + k) = 1.0;                                      
-    //                     // }
-    //                 }                    
-    //             }
-    //         }
-    //     }
-    // } 
+    //     // left boundary
+    //     i = 1;      
+    //     int k = ijTok(i, j);
+    //     r(k) = phi_at(i, j, phi_n_p) - compute_eq_phi(dop_left);        
+    //     r(N + k) = n_at(i, j, phi_n_p) - abs(dop_left);        
+    //     r(2*N + k) = p_at(i, j, phi_n_p) - abs(n_int*n_int/dop_left);        
+    //     jac(k, k) = 1.0; 
+    //     jac(N + k, N + k) = 1.0; 
+    //     jac(2*N + k, 2*N + k) = 1.0; 
+
+    //     // right boundary      
+    //     i = Nx;            
+    //     k = ijTok(i, j);
+    //     r(k) = phi_at(i, j, phi_n_p) - compute_eq_phi(dop_right) - gate_bias;
+    //     r(N + k) = n_at(i, j, phi_n_p) - abs(n_int*n_int/dop_right);
+    //     r(2*N + k) = p_at(i, j, phi_n_p) - abs(dop_right);        
+    //     jac(k, k) = 1.0; 
+    //     jac(N + k, N + k) = 1.0; 
+    //     jac(2*N + k, 2*N + k) = 1.0;                             
+    // }
+
+    //Handle contacts
+    for (int c=0; c<num_contacts; c++)
+    {
+        Region contact = contacts[c];
+        for (int j_=contact.y_begin; j_<=contact.y_end; j_++)
+        {
+            for (int i_=contact.x_begin; i_<=contact.x_end; i_++)
+            {
+                int i = i_ + 1;
+                int j = j_ + 1;
+                for (int p=0; p<num_regions; p++)
+                {
+                    Region region = regions[p];
+                    if (belongs_to(i_, j_, region))
+                    {
+                        int k = ijTok(i, j);
+                        double doping = region.doping;
+                        if (doping != 0)
+                        {                                                                               
+                            r(k) = phi_at(i, j, phi_n_p) - compute_eq_phi(doping);        
+                            if (doping > 0)
+                            {
+                                r(N + k) = n_at(i, j, phi_n_p) - doping;        
+                                r(2*N + k) = p_at(i, j, phi_n_p) - (n_int*n_int/doping);
+                            }
+                            else
+                            {
+                                r(N + k) = n_at(i, j, phi_n_p) - fabs(n_int*n_int/doping);        
+                                r(2*N + k) = p_at(i, j, phi_n_p) - fabs(doping);
+                            }
+                            jac(k, k) = 1.0;  
+                            jac(N + k, N + k) = 1.0; 
+                            jac(2*N + k, 2*N + k) = 1.0;                                      
+                        }
+                        // else // metal-oxide contact                 
+                        // {
+                        //     r(k) = phi_at(i, j, phi_n_p) - ox_boundary_potential - gate_bias; 
+                        //     r(N + k) = n_at(i, j, phi_n_p) - 0;        
+                        //     r(2*N + k) = p_at(i, j, phi_n_p) - 0;
+                        //     jac(k, k) = 1.0;  
+                        //     jac(N + k, N + k) = 1.0; 
+                        //     jac(2*N + k, 2*N + k) = 1.0;                                      
+                        // }
+                    }                    
+                }
+            }
+        }
+    } 
 
     double ion_term = 0.0;
     double eps_ipj = 0;
