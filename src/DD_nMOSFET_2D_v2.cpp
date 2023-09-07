@@ -544,6 +544,67 @@ void save_current_densities(vec &phi_n)
     //current_densities.save("current_densities.txt", arma::raw_ascii);
 }
 
+vec get_current_density(vec &phi_n_p)
+{    
+    double J_SG = 0;    
+    std::vector<std::pair<int, int>> coord_list;
+    coord_list.push_back(std::pair<int, int>(3 + 1, (bulk_height - nwell_height/3) / deltaY + 1));
+    coord_list.push_back(std::pair<int, int>(13 + 1, (bulk_height - nwell_height/3) / deltaY + 1));
+    // coord_list.push_back(std::pair<int, int>(3 + 1, (bulk_height - nwell_height/3) / deltaY + 1));
+    //coord_list.push_back(std::pair<int, int>((bulk_width) / deltaX - 20 + 1, (bulk_height - nwell_height/3) / deltaY + 1));
+    // int i = 3 + 1;
+    // int j = (bulk_height - nwell_height/3) / deltaY + 1;
+    int num_investigation_points = coord_list.size();
+    vec Js(num_investigation_points, arma::fill::zeros);
+    for (int p=0; p<num_investigation_points; ++p)
+    {         
+        std::pair<int, int> coord = coord_list[p];
+        int i = coord.first;
+        int j = coord.second;
+        double mu_n = 1480;
+        double mu_h = 464;
+        double phi_ij = phi_at(i, j, phi_n_p);                           
+        double n_ij = n_at(i, j, phi_n_p);                           
+        double p_ij = p_at(i, j, phi_n_p);                           
+
+        double phi_ipj = phi_at(i+1, j, phi_n_p);                           
+        double phi_imj = phi_at(i-1, j, phi_n_p);                           
+        double phi_ijp = phi_at(i, j+1, phi_n_p);                           
+        double phi_ijm = phi_at(i, j-1, phi_n_p);                           
+
+        double n_ipj = n_at(i+1, j, phi_n_p);                           
+        double n_imj = n_at(i-1, j, phi_n_p);                           
+        double n_ijp = n_at(i, j+1, phi_n_p);                           
+        double n_ijm = n_at(i, j-1, phi_n_p);                                       
+
+        double p_ipj = p_at(i+1, j, phi_n_p);                           
+        double p_imj = p_at(i-1, j, phi_n_p);                           
+        double p_ijp = p_at(i, j+1, phi_n_p);                           
+        double p_ijm = p_at(i, j-1, phi_n_p);         
+        // double J_term1 = -q * mu_n * ((n(i+1) + n(i)) / 2.0) * ((phi(i+1) - phi(i)) / deltaX);
+        // double J_term2 = q * mu_n * thermal*(n(i+1) - n(i))/deltaX;
+        //double J = q * mu_n * (((n(j+1) + n(j)) / 2.0) * ((phi(j+1) - phi(j)) / deltaX) - thermal*(n(j+1) - n(j))/deltaX);
+        //double J = J_term1 + J_term2;
+        double phi_diff_ipi = phi_ipj - phi_ij;
+        double J_n_SG = n_ipj*B(phi_diff_ipi / thermal) - n_ij*B((-phi_diff_ipi) / thermal);
+        double J_h_SG = -p_ipj*B(-(phi_diff_ipi) / thermal) + p_ij*B(phi_diff_ipi / thermal);
+        //double J = q * mu_n * (((n(j+1) + n(j)) / 2.0) * ((phi(j+1) - phi(j)) / deltaX) - thermal*(n(j+1) - n(j))/deltaX);
+        J_n_SG *= 1e-8;
+        J_h_SG *= 1e-8;
+        J_SG = mu_n*J_n_SG - mu_h*J_h_SG;
+        J_SG *= q * thermal / deltaX;
+        Js(p) = J_SG;
+        //J_SG *= 1e6;
+        
+        //current_densities(i) = J_SG;
+        //printf("Result Current Density J: %f (J_n_SG: %f, J_h_SG: %f) \n", J_SG, J_n_SG, J_h_SG);
+        //printf("Result Current Density J: %f, term1: %f, term2: %f, J_SG: %f \n", J, J_term1, J_term2, J_SG);
+    }
+    //current_densities.save("current_densities.txt", arma::raw_ascii);
+
+    return Js;
+}
+
 
 int main() {    
 
@@ -586,35 +647,43 @@ int main() {
     for (int m=2*N; m<3*N; m++)
         C(m, m) = nwell_left_region.doping;  
 
-    //for (int i=0; i<10; i++)
-    {        
-        int i = 5;
-        double gate_bias = (0.1*i);
-        double drain_bias = 0.5;
-        contactID_to_bias["contact_gate"] = gate_bias;
-        contactID_to_bias["contact_drain"] = drain_bias;
-        vec result = solve_phi(contactID_to_bias, phi_n_p_0, C); 
-        phi_n_p_0 = result;           
-        
-        std::string log = fmt::format("Gate Bias {:.2f} V \n", gate_bias);            
-        cout << log;        
-                   
-        vec phi = phi_n_p_0(span(1, N));                
-        vec eDensity = phi_n_p_0(span(N+1, 2*N));        
-        eDensity /= 1e6;
-        vec holeDensity = phi_n_p_0(span(2*N+1, 3*N));        
-        holeDensity /= 1e6;
-        
-        std::string phi_file_name = fmt::format("{}_phi_GB_{:.2f}_DB_{:.2f}.csv", subject_name, gate_bias, drain_bias);
-        phi.save(phi_file_name, csv_ascii);                
+    for (int i=0; i<5; i++)
+    {
+        for (int j=0; j<5; j++)
+        {        
+            double gate_bias = 0.1*i;
+            double drain_bias = 0.1*j;
+            contactID_to_bias["contact_gate"] = gate_bias;
+            contactID_to_bias["contact_drain"] = drain_bias;
+            vec result = solve_phi(contactID_to_bias, phi_n_p_0, C); 
+            phi_n_p_0 = result;           
+            vec Js = get_current_density(phi_n_p_0);
+            printf("J1: %f \n", Js[0]);
+            printf("J2: %f \n", Js[1]);
+            
+            std::string log = fmt::format("Gate Bias {:.2f} V \n", gate_bias);            
+            cout << log;        
+            log = fmt::format("Drain Bias {:.2f} V \n", drain_bias);            
+            cout << log;        
+                    
+            vec phi = phi_n_p_0(span(1, N));                
+            vec eDensity = phi_n_p_0(span(N+1, 2*N));        
+            eDensity /= 1e6;
+            vec holeDensity = phi_n_p_0(span(2*N+1, 3*N));        
+            holeDensity /= 1e6;
+            
+            std::string phi_file_name = fmt::format("{}_phi_GB_{:.2f}_DB_{:.2f}.csv", subject_name, gate_bias, drain_bias);
+            phi.save(phi_file_name, csv_ascii);                
 
-        std::string n_file_name = fmt::format("{}_eDensity_GB_{:.2f}_DB_{:.2f}.csv", subject_name, gate_bias, drain_bias);
-        eDensity.save(n_file_name, csv_ascii);                
+            std::string n_file_name = fmt::format("{}_eDensity_GB_{:.2f}_DB_{:.2f}.csv", subject_name, gate_bias, drain_bias);
+            eDensity.save(n_file_name, csv_ascii);                
 
-        std::string h_file_name = fmt::format("{}_holeDensity_GB_{:.2f}_DB_{:.2f}.csv", subject_name, gate_bias, drain_bias);
-        holeDensity.save(h_file_name, csv_ascii);                                     
+            std::string h_file_name = fmt::format("{}_holeDensity_GB_{:.2f}_DB_{:.2f}.csv", subject_name, gate_bias, drain_bias);
+            holeDensity.save(h_file_name, csv_ascii);                                     
 
-        //save_current_densities(phi_n);
+            std::string j_file_name = fmt::format("{}_J_GB_{:.2f}_DB_{:.2f}.csv", subject_name, gate_bias, drain_bias);
+            Js.save(j_file_name, csv_ascii);                                                         
+        }
     }
 }
 
