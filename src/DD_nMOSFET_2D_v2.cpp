@@ -293,13 +293,21 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, std::map<std::string, dou
             double V = deltaX*deltaY;
 
             if (j == min_y_index)            
+            {
                 s_ijm = 0; s_ipj *= 0.5; s_imj *= 0.5; V *= 0.5;                        
+            }
             if (j == max_y_index)                              
+            {
                 s_ijp = 0; s_ipj *= 0.5; s_imj *= 0.5; V *= 0.5;                        
-            if (i == min_x_index)            
-                s_imj = 0; s_ijp *= 0.5; s_ijm *= 0.5; V *= 0.5;                                        
-            if (i == max_x_index)            
-                s_ipj = 0; s_ijp *= 0.5; s_ijm *= 0.5; V *= 0.5; 
+            }
+            if (i == min_x_index)     
+            {                                   
+                s_imj = 0; s_ijp *= 0.5; s_ijm *= 0.5; V *= 0.5;                                                                
+            }
+            if (i == max_x_index)             
+            {
+                s_ipj = 0; s_ijp *= 0.5; s_ijm *= 0.5; V *= 0.5;                             
+            }
             
             double D_ipj = -eps_ipj * phi_diff_ipi / deltaX;
             double D_imj = -eps_imj * phi_diff_iim / deltaX;                                        

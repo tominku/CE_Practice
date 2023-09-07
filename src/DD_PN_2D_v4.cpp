@@ -650,7 +650,7 @@ int main() {
 
     //for (int i=0; i<9; i++)    
     {           
-        double bias = 0.1*7;        
+        double bias = 0.1*8;        
         contactID_to_bias["contact_p"] = bias;
         vec result = solve_phi(contactID_to_bias, phi_n_p_0, C); 
         phi_n_p_0 = result;           
