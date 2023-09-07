@@ -25,8 +25,8 @@ double thermal = k_B * T / q;
 double bulk_width =  8e-7;
 // double bulk_height = 1990e-9;
 // double ox_height = 10e-9;
-double bulk_height = 7.9e-7;
-double ox_height = 0.1e-7;
+double bulk_height = 7.5e-7;
+double ox_height = 0.5e-7;
 double nwell_width = 1e-7;
 double nwell_height = 1e-7;
 double total_width = bulk_width;
@@ -60,7 +60,7 @@ struct Region
 const int min_x_index = 1;
 const int max_x_index = (total_width/deltaX) + 1;
 const int min_y_index = 1;
-const int max_y_index = (total_height/deltaX) + 1;
+const int max_y_index = (total_height/deltaY) + 1;
 
 Region bulk_region = {"bulk_region", -5e21, eps_si, 0, round(bulk_width/deltaX), 0, round(bulk_height/deltaY)};
 Region ox_region = {"ox_region", 0, eps_ox, 0, round(bulk_width/deltaX), round(bulk_height/deltaY), round(total_height/deltaY)};

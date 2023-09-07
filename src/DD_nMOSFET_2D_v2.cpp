@@ -25,8 +25,8 @@ double thermal = k_B * T / q;
 double bulk_width =  8e-7;
 // double bulk_height = 1990e-9;
 // double ox_height = 10e-9;
-double bulk_height = 7.9e-7;
-double ox_height = 0.1e-7;
+double bulk_height = 7.5e-7;
+double ox_height = 0.5e-7;
 double nwell_width = 1e-7;
 double nwell_height = 1e-7;
 double total_width = bulk_width;
@@ -65,7 +65,7 @@ struct Region
 const int min_x_index = 1;
 const int max_x_index = (total_width/deltaX) + 1;
 const int min_y_index = 1;
-const int max_y_index = (total_height/deltaX) + 1;
+const int max_y_index = (total_height/deltaY) + 1;
 
 Region bulk_region = {"bulk_region", -5e21, eps_si, 0, round(bulk_width/deltaX), 0, round(bulk_height/deltaY)};
 Region ox_region = {"ox_region", 0, eps_ox, 0, round(bulk_width/deltaX), round(bulk_height/deltaY), round(total_height/deltaY)};
@@ -76,20 +76,20 @@ Region nwell_right_region = {"nwell_right_region", 5e23, eps_si,
 Region regions[] = {bulk_region, ox_region, nwell_left_region, nwell_right_region};
 int num_regions = 4;
 
-Region contact1 = {"contact1", 0, 0, 
+Region contact_source = {"contact_source", 0, 0, 
     0, 0, 
     round((bulk_height-(nwell_height/2))/deltaY), round(bulk_height/deltaY)};
-Region contact2 = {"contact2", 0, 0,
+Region contact_drain = {"contact_drain", 0, 0,
     round(bulk_width/deltaX), round(bulk_width/deltaX), 
     round((bulk_height-(nwell_height/2))/deltaY), round(bulk_height/deltaY)};
-Region contact_ox = {"contact_ox", 0, 0, 
+Region contact_gate = {"contact_gate", 0, 0, 
     round(nwell_width/deltaX), Nx-1-round(nwell_width/deltaX), 
     round(total_height/deltaY), round(total_height/deltaY)};    
 Region contact_substrate_gnd = {"contact_substrate_gnd", 0, 0, 
     0, Nx-1, 
     0, 0};        
 
-Region contacts[] = {contact1, contact2, contact_ox, contact_substrate_gnd};
+Region contacts[] = {contact_source, contact_drain, contact_gate, contact_substrate_gnd};
 int num_contacts = 4;
 
 bool belongs_to(double i, double j, Region &region)
@@ -129,7 +129,7 @@ bool is_contact_node(Coord coord)
     return false;
 }
 
-void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double gate_bias)
+void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, std::map<std::string, double> &contactID_to_bias)
 {
     r.fill(0.0);        
     jac.zeros();             
@@ -143,7 +143,13 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double gate_bias)
             for (int i_=contact.x_begin; i_<=contact.x_end; i_++)
             {
                 int i = i_ + 1;
-                int j = j_ + 1;
+                int j = j_ + 1;                
+                std::string contact_id = contact.id;
+                
+                double bias = 0;
+                if (contactID_to_bias.find(contact_id) != contactID_to_bias.end()) 
+                    bias = contactID_to_bias[contact.id];                
+
                 for (int p=0; p<num_regions; p++)
                 {
                     Region region = regions[p];
@@ -153,7 +159,7 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double gate_bias)
                         double doping = region.doping;
                         if (doping != 0)
                         {                                                                               
-                            r(k) = phi_at(i, j, phi_n_p) - compute_eq_phi(doping);        
+                            r(k) = phi_at(i, j, phi_n_p) - compute_eq_phi(doping) - bias;        
                             if (doping > 0)
                             {
                                 r(N + k) = n_at(i, j, phi_n_p) - doping;        
@@ -170,7 +176,8 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double gate_bias)
                         }
                         else // metal-oxide contact                 
                         {
-                            r(k) = phi_at(i, j, phi_n_p) - ox_boundary_potential - gate_bias; 
+                            //r(k) = phi_at(i, j, phi_n_p) - ox_boundary_potential - gate_bias; 
+                            r(k) = phi_at(i, j, phi_n_p) - ox_boundary_potential - bias; 
                             r(N + k) = n_at(i, j, phi_n_p) - 0;        
                             r(2*N + k) = p_at(i, j, phi_n_p) - 0;
                             jac(k, k) = 1.0;  
@@ -448,10 +455,9 @@ void r_and_jacobian(vec &r, sp_mat &jac, vec &phi_n_p, double gate_bias)
     }
 }
 
-vec solve_phi(double bias, vec &phi_n_p_0, sp_mat &C)
+vec solve_phi(std::map<string, double> contactID_to_bias, vec &phi_n_p_0, sp_mat &C)
 {                
-    int num_iters = 20;    
-    printf("boundary voltage: %f \n", bias);
+    int num_iters = 20;        
     auto start = high_resolution_clock::now();
     vec log_residuals(num_iters, arma::fill::zeros);
     vec log_deltas(num_iters, arma::fill::zeros);
@@ -461,11 +467,11 @@ vec solve_phi(double bias, vec &phi_n_p_0, sp_mat &C)
     jac = jac.zeros();    
     
     vec phi_n_p_k(3*N + 1, arma::fill::zeros);     
-    phi_n_p_k = phi_n_p_0;
+    phi_n_p_k = phi_n_p_0;    
 
     for (int k=0; k<num_iters; k++)
     {        
-        r_and_jacobian(r, jac, phi_n_p_k, bias);   
+        r_and_jacobian(r, jac, phi_n_p_k, contactID_to_bias);   
                                       
         sp_mat jac_scaled = jac(span(1, 3*N), span(1, 3*N)) * C;        
 
@@ -513,8 +519,8 @@ vec solve_phi(double bias, vec &phi_n_p_0, sp_mat &C)
     auto duration = duration_cast<milliseconds>(stop - start);        
     cout << "duration: " << duration.count() << endl;
 
-    std::string convergence_file_name = fmt::format("{}_conv_{:.2f}.csv", subject_name, bias);
-    log_deltas.save(convergence_file_name, csv_ascii);            
+    // std::string convergence_file_name = fmt::format("{}_conv_{:.2f}.csv", subject_name, gate_bias);
+    // log_deltas.save(convergence_file_name, csv_ascii);            
         
     return phi_n_p_k;
 }
@@ -541,7 +547,7 @@ void save_current_densities(vec &phi_n)
 
 int main() {    
 
-    double start_potential = 0;    
+    std::map<std::string, double> contactID_to_bias;    
     
     string setting = fmt::format("deltaX: {}, deltaY: {}", deltaX, deltaY); 
     cout << setting << "\n";        
@@ -582,11 +588,15 @@ int main() {
 
     //for (int i=0; i<10; i++)
     {        
-        int i = 1;
-        vec result = solve_phi(bias + (0.1*i), phi_n_p_0, C); 
-        phi_n_p_0 = result;   
+        int i = 5;
+        double gate_bias = (0.1*i);
+        double drain_bias = 0.5;
+        contactID_to_bias["contact_gate"] = gate_bias;
+        contactID_to_bias["contact_drain"] = drain_bias;
+        vec result = solve_phi(contactID_to_bias, phi_n_p_0, C); 
+        phi_n_p_0 = result;           
         
-        std::string log = fmt::format("BD {:.2f} V \n", bias + (0.1*i));            
+        std::string log = fmt::format("Gate Bias {:.2f} V \n", gate_bias);            
         cout << log;        
                    
         vec phi = phi_n_p_0(span(1, N));                
@@ -595,13 +605,13 @@ int main() {
         vec holeDensity = phi_n_p_0(span(2*N+1, 3*N));        
         holeDensity /= 1e6;
         
-        std::string phi_file_name = fmt::format("{}_phi_{:.2f}.csv", subject_name, bias+(0.1*i));
+        std::string phi_file_name = fmt::format("{}_phi_GB_{:.2f}_DB_{:.2f}.csv", subject_name, gate_bias, drain_bias);
         phi.save(phi_file_name, csv_ascii);                
 
-        std::string n_file_name = fmt::format("{}_eDensity_{:.2f}.csv", subject_name, bias+(0.1*i));
+        std::string n_file_name = fmt::format("{}_eDensity_GB_{:.2f}_DB_{:.2f}.csv", subject_name, gate_bias, drain_bias);
         eDensity.save(n_file_name, csv_ascii);                
 
-        std::string h_file_name = fmt::format("{}_holeDensity_{:.2f}.csv", subject_name, bias+(0.1*i));
+        std::string h_file_name = fmt::format("{}_holeDensity_GB_{:.2f}_DB_{:.2f}.csv", subject_name, gate_bias, drain_bias);
         holeDensity.save(h_file_name, csv_ascii);                                     
 
         //save_current_densities(phi_n);
