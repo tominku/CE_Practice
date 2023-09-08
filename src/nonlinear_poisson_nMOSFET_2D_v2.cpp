@@ -471,11 +471,12 @@ int main() {
         std::string log = fmt::format("BD {:.2f} V \n", start_potential + (0.1*i));            
         cout << log;        
         
+        double bias = 0.0;
         vec n(N+1, arma::fill::zeros);
         n(span(1, N)) = n_int * exp(phi(span(1, N)) / thermal);
         n /= 1e6;        
         vec eDensity = n(span(1, N));        
-        std::string n_file_name = fmt::format("{}_eDensity_{:.2f}.csv", subject_name, (0.1*i));
+        std::string n_file_name = fmt::format("{}_eDensity_GB_{:.2f}_DB_{:.2f}.csv", subject_name, bias, bias);
         eDensity.save(n_file_name, csv_ascii);        
 
         vec h(N+1, arma::fill::zeros);
@@ -483,11 +484,11 @@ int main() {
         h /= 1e6;        
         vec holeDensity = h(span(1, N));        
 
-        std::string h_file_name = fmt::format("{}_holeDensity_{:.2f}.csv", subject_name, (0.1*i));
+        std::string h_file_name = fmt::format("{}_holeDensity_GB_{:.2f}_DB_{:.2f}.csv", subject_name, bias, bias);
         holeDensity.save(h_file_name, csv_ascii);        
         
         vec phi_for_plot = phi(span(1, N));
-        std::string phi_file_name = fmt::format("{}_phi_{:.2f}.csv", subject_name, (0.1*i));
+        std::string phi_file_name = fmt::format("{}_phi_GB_{:.2f}_DB_{:.2f}.csv", subject_name, bias, bias);
         phi_for_plot.save(phi_file_name, csv_ascii);                        
 
         vec phi_n(2*N+1, arma::fill::zeros);
